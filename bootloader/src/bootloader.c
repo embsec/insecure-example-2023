@@ -89,6 +89,18 @@ int main(void) {
  * Load initial firmware into flash
  */
 void load_initial_firmware(void) {
+
+  if (*((uint32_t*)(METADATA_BASE+512)) != 0){
+    /*
+     * Default Flash startup state in QEMU is all zeros since it is
+     * secretly a RAM region for emulation purposes. Only load initial
+     * firmware when metadata page is all zeros. Do this by checking
+     * 4 bytes at the half-way point, since the metadata page is filled
+     * with 0xFF after an erase in this function (program_flash()).
+     */
+    return;
+  }
+
   int size = (int)&_binary_firmware_bin_size;
   int *data = (int *)&_binary_firmware_bin_start;
     
