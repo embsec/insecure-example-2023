@@ -9,6 +9,9 @@
 #include "driverlib/sysctl.h" // System control API (clock/reset)
 #include "driverlib/interrupt.h" // Interrupt API
 
+// Library Imports
+#include <string.h>
+
 // Application Imports
 #include "uart.h"
 
@@ -110,7 +113,7 @@ void load_initial_firmware(void) {
   
   // Get included initial firmware
   int size = (int)&_binary_firmware_bin_size;
-  int *data = (int *)&_binary_firmware_bin_start;
+  uint8_t *initial_data = (uint8_t *)&_binary_firmware_bin_start;
   
   // Set version 2 and install
   uint16_t version = 2;
@@ -120,7 +123,7 @@ void load_initial_firmware(void) {
   int i;
   
   for (i = 0; i < size / FLASH_PAGESIZE; i++){
-       program_flash(FW_BASE + (i * FLASH_PAGESIZE), ((unsigned char *) data) + (i * FLASH_PAGESIZE), FLASH_PAGESIZE);
+       program_flash(FW_BASE + (i * FLASH_PAGESIZE), initial_data + (i * FLASH_PAGESIZE), FLASH_PAGESIZE);
   }
   
   /* At end of firmware. Since the last page may be incomplete, we copy the initial
@@ -141,7 +144,7 @@ void load_initial_firmware(void) {
     }
     
     // Copy rest of firmware
-    memcpy(temp_buf, (unsigned char *)(data + (i*FLASH_PAGESIZE)), rem_fw_bytes);
+    memcpy(temp_buf, initial_data + (i*FLASH_PAGESIZE), rem_fw_bytes);
     // Copy what will fit of the release message
     memcpy(temp_buf+rem_fw_bytes, initial_msg, msg_len-rem_msg_bytes);
     // Program the final firmware and first part of the release message
