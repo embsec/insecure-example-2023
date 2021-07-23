@@ -71,6 +71,7 @@ IPATH+=./include
 IPATH+=${STELLARIS}
 IPATH+=${UART}
 IPATH+=${BEARSSL}/inc
+IPATH+=${STELLARIS}/bearssl
 
 #
 # Remove --gc-sections which prevents prevents bearssl from working
@@ -83,6 +84,7 @@ LDFLAGS=
 #
 VPATH=./src
 VPATH+=${UART}
+VPATH+=${STELLARIS}/bearssl
 
 #
 # The default rule, which causes the project example to be built.
@@ -108,10 +110,11 @@ ${COMPILER}:
 #
 ${COMPILER}/main.axf: ${COMPILER}/uart.o
 ${COMPILER}/main.axf: ${COMPILER}/firmware.o
+${COMPILER}/main.axf: ${COMPILER}/beaverssl.o
 ${COMPILER}/main.axf: ${COMPILER}/bootloader.o
 ${COMPILER}/main.axf: ${COMPILER}/startup_${COMPILER}.o
 ${COMPILER}/main.axf: ${STELLARIS}/driverlib/${COMPILER}-cm3/libdriver-cm3.a
-${COMPILER}/main.axf: ${BEARSSL}/build/libbearssl.a
+${COMPILER}/main.axf: ${BEARSSL}/build/stellaris/libbearssl.a
 ${COMPILER}/main.axf: ${STELLARIS}/main.ld
 SCATTERgcc_main=${STELLARIS}/main.ld
 ENTRY_main=ResetISR
