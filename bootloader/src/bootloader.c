@@ -230,7 +230,7 @@ void load_firmware(void)
     frame_length += (int)rcv;
 
     // Write length debug message
-    uart_write_hex(UART2,(unsigned char)rcv);
+    uart_write_hex(UART2, frame_length);
     nl(UART2);
 
     // Get the number of bytes specified
