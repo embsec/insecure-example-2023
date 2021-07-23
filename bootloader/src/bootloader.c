@@ -90,7 +90,8 @@ int main(void) {
  */
 void load_initial_firmware(void) {
 
-  if (*((uint32_t*)(METADATA_BASE+512)) != 0){
+
+  if (*((uint32_t*)(METADATA_BASE)) != 0xFFFFFFFF){
     /*
      * Default Flash startup state in QEMU is all zeros since it is
      * secretly a RAM region for emulation purposes. Only load initial
@@ -101,19 +102,62 @@ void load_initial_firmware(void) {
     return;
   }
 
+  // Create buffers for saving the release message
+  uint8_t temp_buf[FLASH_PAGESIZE];
+  char initial_msg[] = "This is the initial release message.";
+  uint16_t msg_len = strlen(initial_msg)+1;
+  uint16_t rem_msg_bytes;
+  
+  // Get included initial firmware
   int size = (int)&_binary_firmware_bin_size;
   int *data = (int *)&_binary_firmware_bin_start;
-    
+  
+  // Set version 2 and install
   uint16_t version = 2;
   uint32_t metadata = (((uint16_t) size & 0xFFFF) << 16) | (version & 0xFFFF);
   program_flash(METADATA_BASE, (uint8_t*)(&metadata), 4);
-  fw_release_message_address = (uint8_t *) "This is the initial release message.";
-    
-  int i = 0;
-  for (; i < size / FLASH_PAGESIZE; i++){
+  
+  int i;
+  
+  for (i = 0; i < size / FLASH_PAGESIZE; i++){
        program_flash(FW_BASE + (i * FLASH_PAGESIZE), ((unsigned char *) data) + (i * FLASH_PAGESIZE), FLASH_PAGESIZE);
   }
-  program_flash(FW_BASE + (i * FLASH_PAGESIZE), ((unsigned char *) data) + (i * FLASH_PAGESIZE), size % FLASH_PAGESIZE);
+  
+  /* At end of firmware. Since the last page may be incomplete, we copy the initial
+   * release message into the unused space in the last page. If the firmware fully
+   * uses the last page, the release message simply is written to a new page.
+   */
+  
+  uint16_t rem_fw_bytes = size % FLASH_PAGESIZE;
+  if (rem_fw_bytes == 0){
+    // No firmware left. Just write the release message
+    program_flash(FW_BASE + (i*FLASH_PAGESIZE), (uint8_t *)initial_msg, msg_len);
+  } else {
+    // Some firmware left. Determine how many bytes of release message can fit
+    if (msg_len > (FLASH_PAGESIZE-rem_fw_bytes)) {
+      rem_msg_bytes = msg_len - (FLASH_PAGESIZE-rem_fw_bytes);
+    } else {
+      rem_msg_bytes = 0;
+    }
+    
+    // Copy rest of firmware
+    memcpy(temp_buf, (unsigned char *)(data + (i*FLASH_PAGESIZE)), rem_fw_bytes);
+    // Copy what will fit of the release message
+    memcpy(temp_buf+rem_fw_bytes, initial_msg, msg_len-rem_msg_bytes);
+    // Program the final firmware and first part of the release message
+    program_flash(FW_BASE + (i * FLASH_PAGESIZE), temp_buf, rem_fw_bytes+(msg_len-rem_msg_bytes));
+    
+    // If there are more bytes, program them directly from the release message string
+    if (rem_msg_bytes > 0) {
+      // Writing to a new page. Increment pointer
+      i++;
+      program_flash(FW_BASE + (i * FLASH_PAGESIZE), (uint8_t *)(initial_msg+(msg_len-rem_msg_bytes)), rem_msg_bytes);
+    }
+  }
+  
+  // Compute release message start address
+  fw_release_message_address = (uint8_t*)(FW_BASE+size);
+  
 }
 
 
