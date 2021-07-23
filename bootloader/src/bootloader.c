@@ -282,28 +282,41 @@ void load_firmware(void)
  */
 long program_flash(uint32_t page_addr, unsigned char *data, unsigned int data_len)
 {
-  unsigned int padded_data_len;
+  uint32_t word = 0;
+  int ret;
+  int i;
 
   // Erase next FLASH page
   FlashErase(page_addr);
 
   // Clear potentially unused bytes in last word
+  // If data not a multiple of 4 (word size), program up to the last word
+  // Then create temporary variable to create a full last word
   if (data_len % FLASH_WRITESIZE){
-    // Get number unused
+    // Get number of unused bytes
     int rem = data_len % FLASH_WRITESIZE;
-    int i;
-    // Set to 0
-    for (i = 0; i < rem; i++){
-      data[data_len-1-i] = 0x00;
+    int num_full_bytes = data_len - rem;
+    
+    // Program up to the last word
+    ret = FlashProgram((unsigned long *)data, page_addr, num_full_bytes);
+    if (ret != 0) {
+      return ret;
     }
-    // Pad to 4-byte word
-    padded_data_len = data_len+(FLASH_WRITESIZE-rem);
-  } else {
-    padded_data_len = data_len;
+    
+    // Create last word variable -- fill unused with 0xFF
+    for (i = 0; i < rem; i++) {
+      word = (word >> 8) | (data[num_full_bytes+i] << 24); // Essentially a shift register from MSB->LSB
+    }
+    for (i = i; i < 4; i++){
+      word = (word >> 8) | 0xFF000000;
+    }
+    
+    // Program word
+    return FlashProgram(&word, page_addr+num_full_bytes, 4);
+  } else{
+    // Write full buffer of 4-byte words
+    return FlashProgram((unsigned long *)data, page_addr, data_len);
   }
-
-  // Write full buffer of 4-byte words
-  return FlashProgram((unsigned long *)data, page_addr, padded_data_len);
 }
 
 
