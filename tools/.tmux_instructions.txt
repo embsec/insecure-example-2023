@@ -1,0 +1,12 @@
+** Commands **
+  - To move between panes:
+      Ctrl+a, arrow
+  - To exit:
+      Ctrl+a, ':', 'kill-session'
+** UART interfaces **
+  - /embsec/UART0: reset
+  - /embsec/UART1: bootloader interface
+  - /embsec/UART2: output
+  
+To re-launch a connection to interface x, type:
+    miniterm /embsec/UARTx

@@ -41,6 +41,7 @@ long program_flash(uint32_t, unsigned char*, unsigned int);
 
 
 // Firmware v2 is embedded in bootloader
+// Read up on these symbols in the objcopy man page (if you want)!
 extern int _binary_firmware_bin_start;
 extern int _binary_firmware_bin_size;
 
@@ -56,6 +57,8 @@ unsigned char data[FLASH_PAGESIZE];
 
 int main(void) {
 
+  // A 'reset' on UART0 will re-start this code at the top of main, won't clear flash, but will clean ram.
+
   // Initialize UART channels
   // 0: Reset
   // 1: Host Connection
@@ -68,7 +71,7 @@ int main(void) {
   IntEnable(INT_UART0);
   IntMasterEnable();
 
-  load_initial_firmware();
+  load_initial_firmware();  // note the short-circuit behavior in this function, it doesn't finish running on reset!
 
   uart_write_str(UART2, "Welcome to the BWSI Vehicle Update Service!\n");
   uart_write_str(UART2, "Send \"U\" to update, and \"B\" to run the firmware.\n");
@@ -96,11 +99,9 @@ void load_initial_firmware(void) {
 
   if (*((uint32_t*)(METADATA_BASE)) != 0xFFFFFFFF){
     /*
-     * Default Flash startup state in QEMU is all zeros since it is
-     * secretly a RAM region for emulation purposes. Only load initial
-     * firmware when metadata page is all zeros. Do this by checking
-     * 4 bytes at the half-way point, since the metadata page is filled
-     * with 0xFF after an erase in this function (program_flash()).
+     * Default Flash startup state is all FF since. Only load initial
+     * firmware when metadata page is all FF. Thus, exit if there has
+     * been a reset!
      */
     return;
   }
@@ -158,9 +159,6 @@ void load_initial_firmware(void) {
     }
   }
   
-  // Compute release message start address
-  fw_release_message_address = (uint8_t*)(FW_BASE+size);
-  
 }
 
 
@@ -216,7 +214,6 @@ void load_firmware(void)
   // Create 32 bit word for flash programming, version is at lower address, size is at higher address
   uint32_t metadata = ((size & 0xFFFF) << 16) | (version & 0xFFFF);
   program_flash(METADATA_BASE, (uint8_t*)(&metadata), 4);
-  fw_release_message_address = (uint8_t *) (FW_BASE + size);
 
   uart_write(UART1, OK); // Acknowledge the metadata.
 
@@ -322,6 +319,9 @@ long program_flash(uint32_t page_addr, unsigned char *data, unsigned int data_le
 
 void boot_firmware(void)
 {
+  // compute the release message address, and then print it
+  uint16_t fw_size = *fw_size_address;
+  fw_release_message_address = (uint8_t*)(FW_BASE + fw_size);
   uart_write_str(UART2, (char *) fw_release_message_address);
 
   // Boot the firmware

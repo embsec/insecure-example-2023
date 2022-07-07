@@ -45,7 +45,7 @@ PART=LM3S6965
 #
 # Base library directory
 #
-ROOT=$(realpath ../../../)
+ROOT=${HOME}
 LIB=${ROOT}/lib
 
 #
