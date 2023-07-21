@@ -1,5 +1,6 @@
 #include "mitre_car.h"
 #include "uart.h"
+#include "usart.h"
 
 #include <string.h>
 
