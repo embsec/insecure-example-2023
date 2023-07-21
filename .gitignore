@@ -1,0 +1,11 @@
+firmware/**/*.d
+firmware/**/*.o
+firmware/**/*.axf
+firmware/**/*.bin
+
+bootloader/**/*.d
+bootloader/**/*.o
+bootloader/**/*.axf
+bootloader/**/*.bin
+
+**/__pycache__/
