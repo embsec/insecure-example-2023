@@ -28,7 +28,7 @@ int readLine(char *buffer, int max_bytes)
 
 void write(const char *buffer)
 {
-    uart_write_str(UART2, buffer); // Send the byte.
+    uart_write_str(UART2, (char *) buffer); // Send the byte.
 }
 
 void writeLine(const char *buffer)
