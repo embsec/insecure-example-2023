@@ -49,7 +49,7 @@ if __name__ == '__main__':
     parser.add_argument("--initial-firmware", help="Path to the the firmware binary.", default=None)
     args = parser.parse_args()
     if args.initial_firmware is None:
-        binary_path = FILE_DIR / '..' / 'firmware' / 'firmware' / 'gcc' / 'main.bin'
+        binary_path = FILE_DIR / '..' / 'firmware' / 'gcc' / 'main.bin'
     else:
         binary_path = os.path.abspath(pathlib.Path(args.initial_firmware))
 
