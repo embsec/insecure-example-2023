@@ -100,6 +100,15 @@ clean:
 	@rm -rf ${COMPILER} ${wildcard *~}
 
 #
+# Rule to remove intermediate build objects to avoid confusing students.
+#
+remove_objects:
+	@rm -f ${COMPILER}/*[^.axf]
+
+# Because this project is so small, build speed impact is negligible.
+# We want to make the process as clear as possible to students by only having the important, final files present.
+all: remove_objects
+#
 # The rule to create the target directory.
 #
 ${COMPILER}:
