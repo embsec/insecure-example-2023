@@ -1,8 +1,0 @@
-** Commands **
-  - Use your mouse to move between panes
-  - Type 'tmux kill-session' in a terminal to exit
-  - Re-launch a connection on UARTx with 'miniterm /embsec/UARTx 115200'
-** UART interfaces **
-  - /embsec/UART0: reset
-  - /embsec/UART1: bootloader interface
-  - /embsec/UART2: output
