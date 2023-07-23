@@ -1,6 +1,7 @@
 import argparse
 import pathlib
 import subprocess
+import os
 
 
 def emulate(binary_path, debug=False):
@@ -12,8 +13,8 @@ def emulate(binary_path, debug=False):
     uart_paths = ["/embsec/UART0", "/embsec/UART1", "/embsec/UART2"]
     for i in range(3):
         cmd.extend(["-serial", f"unix:{uart_paths[i]},server"])
-
-    subprocess.call(["pkill", "qemu"])
+    os.system("pkill qemu")
+    os.system("rm -rf /flash/*")
     subprocess.Popen(cmd)
 
 
