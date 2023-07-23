@@ -19,14 +19,8 @@ def emulate(binary_path, debug=False):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Stellaris Emulator")
-    parser.add_argument(
-        "--boot-path", help="Path to the the bootloader binary.", default=None
-    )
-    parser.add_argument(
-        "--debug",
-        help="Start GDB server and break on first instruction",
-        action="store_true",
-    )
+    parser.add_argument("--boot-path", help="Path to the the bootloader binary.", default=None)
+    parser.add_argument("--debug", help="Start GDB server and break on first instruction", action="store_true")
     args = parser.parse_args()
     if args.boot_path is None:
         binary_path = (pathlib.Path(__file__).parent / ".." / "bootloader" / "gcc" / "main.axf")
