@@ -110,6 +110,7 @@ def update(ser, infile, debug):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Firmware Update Tool")
 
+    parser.add_argument("--port", help="Does nothing, included to adhere to command examples in rule doc", required=False)
     parser.add_argument("--firmware", help="Path to firmware image to load.", required=False)
     parser.add_argument("--debug", help="Enable debugging messages.", action="store_true")
     args = parser.parse_args()
