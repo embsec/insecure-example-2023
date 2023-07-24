@@ -20,6 +20,8 @@ In our case, the data is from one line of the Intel Hex formated .hex file
 We write a frame to the bootloader, then wait for it to respond with an
 OK message so we can write the next frame. The OK message in this case is
 just a zero
+
+test line
 """
 
 import argparse
