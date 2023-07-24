@@ -13,7 +13,7 @@ from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
 from  pwn import *
 
-def encrypt(data, key, nonce):
+def encrypt(data, key):
     header = b"header" #DO NOT KEEP IN FINAL VERSION
 
     cipher = AES.new(key, AES.MODE_GCM)
@@ -24,15 +24,19 @@ def encrypt(data, key, nonce):
 
 
 
-def protect_firmware(infile, outfile, version, message, key, nonce):
+def protect_firmware(infile, outfile, version, message, secret):
     # Load firmware binary from infile
     with open(infile, 'rb') as fp:
         firmware = fp.read()
+    #load secret key (256 bits)
+    key = b""
+    with open (secret, "rb") as fp:
+        key = fp.read()
 
     encrypted = b""
 
     for i in range (0, len(firmware), 15):#Breaks firmware binary into chunks and runs those chunks through encrypt(). Uses keys from 
-        encrypted += encrypt((p8(2) + firmware[i : i + 15]), b"12345678901234567890123456789012", b"1234567890123456")
+        encrypted += encrypt((p8(2) + firmware[i : i + 15]), key)
     print(encrypted)
 
     # Append null-terminated message to end of firmware
@@ -55,8 +59,7 @@ if __name__ == '__main__':
     parser.add_argument("--outfile", help="Filename for the output firmware.", required=True)
     parser.add_argument("--version", help="Version number of this firmware.", required=True)
     parser.add_argument("--message", help="Release message for this firmware.", required=True)
-    parser.add_argument("--key", help="Encryption key", required=True)
-    parser.add_argument("--nonce", help="Nonce used by AES", required=True)
+    parser.add_argument("--secret", help="path to secret_build_output.txt", required=True)
     args = parser.parse_args()
 
-    protect_firmware(infile=args.infile, outfile=args.outfile, version=int(args.version), message=args.message, key=args.key, nonce=args.nonce)
+    protect_firmware(infile=args.infile, outfile=args.outfile, version=int(args.version), message=args.message, secret=args.secret)
