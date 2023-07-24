@@ -1,3 +1,6 @@
+// Copyright 2023 The MITRE Corporation. ALL RIGHTS RESERVED
+// Approved for public release. Distribution unlimited 23-02181-13.
+
 // Hardware Imports
 #include "inc/hw_memmap.h" // Peripheral Base Addresses
 #include "inc/lm3s6965.h"  // Peripheral Bit Masks and Registers
