@@ -14,16 +14,15 @@ from Crypto.Util.Padding import pad
 from  pwn import *
 
 def encrypt(data, key, nonce):
-    print("Encrypting")
     header = b"header" #DO NOT KEEP IN FINAL VERSION
 
     cipher = AES.new(key, AES.MODE_GCM)
     cipher.update(header)
     ciphertext, tag = cipher.encrypt_and_digest(pad(data, 16))#Encrypts the data
-    return(ciphertext + nonce + tag)#Returns encrypted data
+    return(ciphertext + cipher.nonce + tag)#Returns encrypted data
 
 
-print(encrypt(b"someData", b"12345678901234567890123456789012", b"1234567890123456"))
+
 
 def protect_firmware(infile, outfile, version, message, key, nonce):
     # Load firmware binary from infile
@@ -32,7 +31,7 @@ def protect_firmware(infile, outfile, version, message, key, nonce):
 
     encrypted = b""
 
-    for i in range (0, len(firmware), 15):
+    for i in range (0, len(firmware), 15):#Breaks firmware binary into chunks and runs those chunks through encrypt(). Uses keys from 
         encrypted += encrypt((p8(2) + firmware[i : i + 15]), b"12345678901234567890123456789012", b"1234567890123456")
     print(encrypted)
 
