@@ -173,26 +173,33 @@ int aes_decrypt(void){
     int tag = 0;
     int nonce = 0;
 
-    // Get 48 bytes (0x30)
-    for (int i = 0; i < 16; i += 0) {
+    // Get 16 bytes (0x30)
+    for (int i = 0; i < 16; i += 1) {
         // Note: uart_read only reads 1 byte @ a time
         rcv = uart_read(UART1, BLOCKING, &read);
         data |= (uint32_t)rcv << 8;
     }
 
     // Just imagine that I got everything
-    // Initialize CTR struct
-    struct br_block_ctr_class counter;
+    // Initialize CTR struct & GHASH? idk
+    br_block_ctr_class counter = { &counter, &KEY, 16};
+    br_ghash ghash;
+
     // Initialize GCM struct
-    struct br_gcm_context context;
-    br_gcm_init(); // Does something?
+    br_gcm_context context;
+    br_gcm_init(&context, &counter, ghash); // Does something?
     br_gcm_reset(&context, nonce, 16); // Adds nonce
 
     // Decrypt (this works enough)
     br_gcm_run(&context, 0, &data, 16);
+    
+    // Check tag. If invalid, return 0.
     uint32_t validTag = br_gcm_check_tag(&context, &tag);
-
-    return data;
+    if (validTag == 0) {
+        return 0;
+    } else {
+        return data;
+    }
 }
 
 /*
