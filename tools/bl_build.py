@@ -59,9 +59,10 @@ if __name__ == "__main__":
     copy_initial_firmware(firmware_path)
     make_bootloader()
 
+# generate aes key of 32 bytes 
 def generate_aes():
-    # generate aes key of 32 bytes 
     key = os.urandom(32)
+    #convert the key to a hexadecimal string 
     aes_key = key.hex()
     return aes_key
 
