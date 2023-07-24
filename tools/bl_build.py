@@ -62,12 +62,10 @@ if __name__ == "__main__":
 # generate aes key of 32 bytes 
 def generate_aes():
     key = os.urandom(32)
-    #convert the key to a hexadecimal string 
-    aes_key = key.hex()
-    return aes_key
+    return key
 
 aes_key = generate_aes()
 
-# write the aes key to the secret file
-with open("secret_build_output.txt", "w") as file:
+# write the aes key to the secret file in byte format
+with open("secret_build_output.txt", "wb") as file:
     file.write(aes_key)
