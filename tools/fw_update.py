@@ -6,73 +6,134 @@
 """
 Firmware Updater Tool
 
-A frame consists of two sections:
-1. Two bytes for the length of the data section
-2. A data section of length defined in the length section
+A START frame consists of five sections plus padding:
+1. 1 byte for the message type(1)
+2. 2 bytes for the version
+3. 2 bytes for the Firmware Size
+4. 2 bytes for release message size
+5. 16 bytes for GCM tag
 
-[ 0x02 ]  [ variable ]
---------------------
-| Length | Data... |
---------------------
+        [ 0x1 ]            [ 0x2 ]           [0x2]                      [0x2]                    [0x9]            [0x10]
+--------------------------------------------------------------------------------------------------------------
+| Message Type (1) | Version | Firmware Size | Release Message Size | GCM Tag | needed padding |
+--------------------------------------------------------------------------------------------------------------
+
+A DATA frame consists of four sections:
+1. 1 byte for the message type(2)
+2. 15 bytes for data
+3. 16 bytes for GCM tag
+4. 16 bytes for nonce
+
+           [ 0x1 ]        [ 0xF ]   [0x10]      [0x10]                  
+----------------------------------------------------
+| Message Type (2) | Data | GCM Tag | Nonce | 
+----------------------------------------------------
+
+An END frame consists of four sections:
+1. 1 byte for the message type(3)
+2. 15 bytes of padding
+3. 16 bytes for GCM tag
+4. 16 bytes for nonce
+
+          [ 0x1 ]            [ 0xF ]     [0x10]     [0x10]                  
+-------------------------------------------------------
+| Message Type (3) | Padding | GCM Tag | Nonce | 
+-------------------------------------------------------
+
+A RESPONSE frame consists of 2 sections:
+1. 1 byte for the message type(4)
+2. 1 byte for the message
+
+          [ 0x1 ]              [ 0x1 ]                      
+-----------------------------------
+| Message Type (4) | Message |
+-----------------------------------
 
 In our case, the data is from one line of the Intel Hex formated .hex file
 
 We write a frame to the bootloader, then wait for it to respond with an
-OK message so we can write the next frame. The OK message in this case is
-just a zero
+OK message so we can write the next frame, else we resend up to ten times.
 
 """
 
 import argparse
-import struct
 import time
 import socket
 
 from util import *
 
-RESP_OK = b"\x00"
-FRAME_SIZE = 256
+from Crypto.Util.Padding import pad
 
+OK = b"\x00"
+ERROR = b"\x01"
+END = b"\x02"
 
+FRAME_SIZE = 48
+    
 def send_metadata(ser, metadata, debug=False):
-    version, size = struct.unpack_from("<HH", metadata)
-    print(f"Version: {version}\nSize: {size} bytes\n")
-
-    # Handshake for update
+    # Handshake for update TODO: change frame?
     ser.write(b"U")
 
     print("Waiting for bootloader to enter update mode...")
     while ser.read(1).decode() != "U":
         print("got a byte")
         pass
-
-    # Send size and version to bootloader.
+    
+    #write metadata (START frame)
+    ser.write(metadata)
+    
     if debug:
         print(metadata)
-
-    ser.write(metadata)
-
-    # Wait for an OK from the bootloader.
-    resp = ser.read(1)
-    if resp != RESP_OK:
-        raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(resp)))
+    
+    # check for an OK from the bootloader.
+    returnmessagetype = ser.read(1)
+    returnmessageinfo = ser.read(1)
+    # TODO: right now, wrong init frame with throw error and end update, should we keep it this way, or have it resend?
+    if returnmessageinfo != OK or returnmessagetype != 4:
+        raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(returnmessageinfo)))
 
 
 def send_frame(ser, frame, debug=False):
-    ser.write(frame)  # Write the frame...
-
+    # Write the DATA frame
+    ser.write(frame) 
+    
     if debug:
         print_hex(frame)
 
-    resp = ser.read(1)  # Wait for an OK from the bootloader
+    #counter for times ERROR was returns
+    falsetimes = 0
+    #boolean that stores whether frame sent was successful
+    framesuccess = False
+    
+    #resend frame if given ERROR message
+    while framesuccess == False:
+        if falsetimes >= 10:
+            raise RuntimeError("invalid frame sent too many times, aborting")
+        
+        # get return message type
+        returnmessagetype = ser.read(1)
+        #get return message info
+        returnmessageinfo = ser.read(1)
+        time.sleep(0.1)
+        
+        if debug:
+            print("Resp: {}".format(ord(returnmessageinfo)))
+            
+        #check for valid return message type
+        if returnmessagetype == 4:
+            if returnmessageinfo == OK:
+                framesuccess = True
+            elif returnmessageinfo == ERROR:
+                ser.write(frame)
+                #increment falsetimes if frame was invalid
+                falsetimes += 1
+            elif returnmessageinfo == END:
+                raise RuntimeError("invalid frame sent, aborting update")
+            else:
+                raise RuntimeError("invalid message, aborting update")
+        else:
+            raise RuntimeError("invalid message number, aborting update")
 
-    time.sleep(0.1)
-
-    if resp != RESP_OK:
-        raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(resp)))
-
-    if debug:
-        print("Resp: {}".format(ord(resp)))
 
 
 def update(ser, infile, debug):
@@ -80,32 +141,22 @@ def update(ser, infile, debug):
     with open(infile, "rb") as fp:
         firmware_blob = fp.read()
 
-    metadata = firmware_blob[:4]
-    firmware = firmware_blob[4:]
+    metadata = firmware_blob[:32]
+    firmware = firmware_blob[32:]
 
+    #SEND START FRAME
     send_metadata(ser, metadata, debug=debug)
 
+    #SEND DATA FRAMES, MESSAGE FRAME, END FRAME
     for idx, frame_start in enumerate(range(0, len(firmware), FRAME_SIZE)):
         data = firmware[frame_start : frame_start + FRAME_SIZE]
 
-        # Get length of data.
-        length = len(data)
-        frame_fmt = ">H{}s".format(length)
-
-        # Construct frame.
-        frame = struct.pack(frame_fmt, length, data)
-
-        send_frame(ser, frame, debug=debug)
-        print(f"Wrote frame {idx} ({len(frame)} bytes)")
-
+        send_frame(ser, data, debug=debug)
+        print(f"Wrote frame {idx} ({len(data)} bytes)")
+        
+    print("Wrote end frame")
     print("Done writing firmware.")
 
-    # Send a zero length payload to tell the bootlader to finish writing it's page.
-    ser.write(struct.pack(">H", 0x0000))
-    resp = ser.read(1)  # Wait for an OK from the bootloader
-    if resp != RESP_OK:
-        raise RuntimeError("ERROR: Bootloader responded to zero length frame with {}".format(repr(resp)))
-    print(f"Wrote zero length frame (2 bytes)")
 
     return ser
 
