@@ -159,6 +159,34 @@ void load_initial_firmware(void){
     }
 }
 
+
+/*
+ * decrypt
+ * GCM: https://bearssl.org/apidoc/structbr__gcm__context.html
+ */
+int aes_decrypt(void){
+    int read = 0;
+    uint32_t rcv = 0;
+
+    // I wish these were 48 bytes. They are 4.
+    int chunk = 0;
+    int tag = 0;
+    int nonce = 0;
+
+    // Get 48 bytes (0x30)
+    for (int i = 0; i < 16; i += 0) {
+        // Note: uart_read only reads 1 byte @ a time
+        rcv = uart_read(UART1, BLOCKING, &read);
+        chunk |= (uint32_t)rcv << 8;
+    }
+
+    // Just imagine that I got everything
+    // Initialize GCM context
+    br_gcm_init();
+
+    return chunk;
+}
+
 /*
  * Load the firmware into flash.
  * This is where I stick all the code
@@ -171,9 +199,9 @@ void load_firmware(void){
     uint32_t data_index = 0;
     uint32_t page_addr = FW_BASE;
     uint32_t version = 0;
-    uint32_t size = 0;
+    uint32_t size = 0;    
 
-    // Get version as 16 bytes 
+    // Get version as 16 bytes
     rcv = uart_read(UART1, BLOCKING, &read);
     version = (uint32_t)rcv;
     rcv = uart_read(UART1, BLOCKING, &read);
