@@ -168,8 +168,8 @@ int aes_decrypt(void){
     int read = 0;
     uint32_t rcv = 0;
 
-    // I wish these were 48 bytes. They are 4.
-    int chunk = 0;
+    // I wish ints were 48 bytes. They are 4.
+    int data = 0;
     int tag = 0;
     int nonce = 0;
 
@@ -177,14 +177,22 @@ int aes_decrypt(void){
     for (int i = 0; i < 16; i += 0) {
         // Note: uart_read only reads 1 byte @ a time
         rcv = uart_read(UART1, BLOCKING, &read);
-        chunk |= (uint32_t)rcv << 8;
+        data |= (uint32_t)rcv << 8;
     }
 
     // Just imagine that I got everything
-    // Initialize GCM context
-    br_gcm_init();
+    // Initialize CTR struct
+    struct br_block_ctr_class counter;
+    // Initialize GCM struct
+    struct br_gcm_context context;
+    br_gcm_init(); // Does something?
+    br_gcm_reset(&context, nonce, 16); // Adds nonce
 
-    return chunk;
+    // Decrypt (this works enough)
+    br_gcm_run(&context, 0, &data, 16);
+    uint32_t validTag = br_gcm_check_tag(&context, &tag);
+
+    return data;
 }
 
 /*
