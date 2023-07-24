@@ -35,6 +35,7 @@ long program_flash(uint32_t, unsigned char *, unsigned int);
 // Protocol Constants
 #define OK ((unsigned char)0x00)
 #define ERROR ((unsigned char)0x01)
+#define END ((unsigned char)0x02)
 #define UPDATE ((unsigned char)'U')
 #define BOOT ((unsigned char)'B')
 
