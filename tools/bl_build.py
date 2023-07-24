@@ -9,11 +9,14 @@ Bootloader Build Tool
 This tool is responsible for building the bootloader from source and copying
 the build outputs into the host tools directory for programming.
 """
-import argparse #crying
+import argparse
+import hashlib #crying
 import os
 import pathlib
 import shutil
 import subprocess
+from Crypto.Hash import SHA256
+from Crypto.Cipher import AES
 
 REPO_ROOT = pathlib.Path(__file__).parent.parent.absolute()
 BOOTLOADER_DIR = os.path.join(REPO_ROOT, "bootloader")
@@ -55,3 +58,16 @@ if __name__ == "__main__":
 
     copy_initial_firmware(firmware_path)
     make_bootloader()
+
+def generate_aes():
+    # generate aes key of 32 bytes 
+    key = os.urandom(32)
+    return key
+    
+
+key = generate_aes()
+aes_key = key.hex()
+print(aes_key)
+
+# with open("secret_build_output.txt", "r") as file:
+#         file.write(aes_key)
