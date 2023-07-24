@@ -18,6 +18,7 @@ def encrypt(data, key):
 
     cipher = AES.new(key, AES.MODE_GCM)
     cipher.update(header)
+    print(header)
     ciphertext, tag = cipher.encrypt_and_digest(pad(data, 16))#Encrypts the data
     return(ciphertext + cipher.nonce + tag)#Returns encrypted data
 
