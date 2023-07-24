@@ -14,6 +14,7 @@
 
 // Library Imports
 #include <string.h>
+#include <bearssl.h>
 
 // Application Imports
 #include "uart.h"
@@ -91,7 +92,7 @@ int main(void){
 }
 
 /*
- * Load initial firmware into flash
+ * Load initial firmware into flash (V2)
  */
 void load_initial_firmware(void){
 
@@ -160,6 +161,7 @@ void load_initial_firmware(void){
 
 /*
  * Load the firmware into flash.
+ * This is where I stick all the code
  */
 void load_firmware(void){
     int frame_length = 0;
@@ -317,6 +319,7 @@ long program_flash(uint32_t page_addr, unsigned char *data, unsigned int data_le
     }
 }
 
+// Boots firmware (when response is 'B')
 void boot_firmware(void){
     // compute the release message address, and then print it
     uint16_t fw_size = *fw_size_address;
