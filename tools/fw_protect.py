@@ -9,9 +9,20 @@ Firmware Bundle-and-Protect Tool
 """
 import argparse
 import struct
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad
+
+def encrypt(data, key, nonce):
+    print("Encrypting")
+    header = b"header" #DO NOT KEEP IN FINAL VERSION
+
+    cipher = AES.new(key, AES.MODE_GCM)
+    cipher.update(header)
+    cipher.update(nonce)
+    ciphertext, tag = cipher.encrypt_and_digest(data)#Encrypts the data
 
 
-def protect_firmware(infile, outfile, version, message):
+def protect_firmware(infile, outfile, version, message, key, nonce):
     # Load firmware binary from infile
     with open(infile, 'rb') as fp:
         firmware = fp.read()
@@ -36,6 +47,8 @@ if __name__ == '__main__':
     parser.add_argument("--outfile", help="Filename for the output firmware.", required=True)
     parser.add_argument("--version", help="Version number of this firmware.", required=True)
     parser.add_argument("--message", help="Release message for this firmware.", required=True)
+    parser.add_argument("--key", help="Encryption key", required=True)
+    parser.add_argument("--nonce", help="Nonce used by AES", required=True)
     args = parser.parse_args()
 
-    protect_firmware(infile=args.infile, outfile=args.outfile, version=int(args.version), message=args.message)
+    protect_firmware(infile=args.infile, outfile=args.outfile, version=int(args.version), message=args.message, key=args.key, nonce=args.nonce)
