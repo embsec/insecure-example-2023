@@ -19,8 +19,11 @@ def encrypt(data, key, nonce):
     cipher = AES.new(key, AES.MODE_GCM)
     cipher.update(header)
     cipher.update(nonce)
-    ciphertext, tag = cipher.encrypt_and_digest(data)#Encrypts the data
+    ciphertext, tag = cipher.encrypt_and_digest(pad(data, 16))#Encrypts the data
+    return(ciphertext + b" TAG: " + tag)#Returns encrypted data
 
+
+print(encrypt(b"someData", b"12345678901234567890123456789012", b"1234567890123456"))
 
 def protect_firmware(infile, outfile, version, message, key, nonce):
     # Load firmware binary from infile
