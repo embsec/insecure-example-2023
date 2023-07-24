@@ -23,14 +23,10 @@ import struct
 import time
 import socket
 
-from util import DomainSocketSerial
-
-UART0_PATH = "/embsec/UART0"
-UART1_PATH = "/embsec/UART1"
-UART2_PATH = "/embsec/UART2"
+from util import *
 
 RESP_OK = b"\x00"
-FRAME_SIZE = 16
+FRAME_SIZE = 256
 
 
 def send_metadata(ser, metadata, debug=False):
@@ -61,7 +57,7 @@ def send_frame(ser, frame, debug=False):
     ser.write(frame)  # Write the frame...
 
     if debug:
-        print(frame)
+        print_hex(frame)
 
     resp = ser.read(1)  # Wait for an OK from the bootloader
 
@@ -94,15 +90,17 @@ def update(ser, infile, debug):
         # Construct frame.
         frame = struct.pack(frame_fmt, length, data)
 
-        if debug:
-            print("Writing frame {} ({} bytes)...".format(idx, len(frame)))
-
         send_frame(ser, frame, debug=debug)
+        print(f"Wrote frame {idx} ({len(frame)} bytes)")
 
     print("Done writing firmware.")
 
     # Send a zero length payload to tell the bootlader to finish writing it's page.
     ser.write(struct.pack(">H", 0x0000))
+    resp = ser.read(1)  # Wait for an OK from the bootloader
+    if resp != RESP_OK:
+        raise RuntimeError("ERROR: Bootloader responded to zero length frame with {}".format(repr(resp)))
+    print(f"Wrote zero length frame (2 bytes)")
 
     return ser
 

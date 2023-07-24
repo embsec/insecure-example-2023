@@ -1,5 +1,9 @@
 import socket
 
+UART0_PATH = "/embsec/UART0"
+UART1_PATH = "/embsec/UART1"
+UART2_PATH = "/embsec/UART2"
+
 class DomainSocketSerial:
     def __init__(self, ser_socket: socket.socket):
         self.ser_socket = ser_socket
@@ -27,3 +31,7 @@ class DomainSocketSerial:
     def close(self):
         self.ser_socket.close()
         del self
+
+def print_hex(data):
+    hex_string = ' '.join(format(byte, '02x') for byte in data)
+    print(hex_string)

@@ -2,6 +2,7 @@ import argparse
 import pathlib
 import subprocess
 import os
+from util import *
 
 
 def emulate(binary_path, debug=False):
@@ -13,8 +14,25 @@ def emulate(binary_path, debug=False):
     uart_paths = ["/embsec/UART0", "/embsec/UART1", "/embsec/UART2"]
     for i in range(3):
         cmd.extend(["-serial", f"unix:{uart_paths[i]},server"])
+    
+    # Try to kill and delete leftover stuff before starting qemu
     os.system("pkill qemu")
+    try:
+        os.system(f"rm -rf {UART0_PATH}")
+    except:
+        pass
+
+    try:
+        os.system(f"rm -rf {UART1_PATH}")
+    except:
+        pass
+
+    try:
+        os.system(f"rm -rf {UART2_PATH}")
+    except:
+        pass
     os.system("rm -rf /flash/*")
+    
     subprocess.Popen(cmd)
 
 
