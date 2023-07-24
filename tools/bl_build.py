@@ -9,7 +9,7 @@ Bootloader Build Tool
 This tool is responsible for building the bootloader from source and copying
 the build outputs into the host tools directory for programming.
 """
-import argparse
+import argparse #crying
 import os
 import pathlib
 import shutil
