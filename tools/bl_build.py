@@ -59,13 +59,22 @@ if __name__ == "__main__":
     copy_initial_firmware(firmware_path)
     make_bootloader()
 
-# generate aes key of 32 bytes 
-def generate_aes():
-    key = os.urandom(32)
+# function to generate random byte strings based on a certain number of bytes passed
+def generate(number):
+    key = os.urandom(number)
     return key
 
-aes_key = generate_aes()
+#generate the aes key 
+aes_key = generate(32)
+#generate a random 16 byte string of characters 
+header = generate(16)
 
-# write the aes key to the secret file in byte format
+# write the aes key and header to the secret file in byte format
 with open("secret_build_output.txt", "wb") as file:
-    file.write(aes_key)
+    file.write(aes_key + b"\n")
+    file.write(header)
+
+# reads the txt file in byte format and prints out the first line (aes key) in the terminal 
+with open ("../bootloader/secret_build_output.txt", "rb") as file:
+    print(file.readline())
+
