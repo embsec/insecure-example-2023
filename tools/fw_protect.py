@@ -13,12 +13,10 @@ from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
 from  pwn import *
 
-def encrypt(data, key):
-    header = b"header" #DO NOT KEEP IN FINAL VERSION
+def encrypt(data, key, header):
 
     cipher = AES.new(key, AES.MODE_GCM)
     cipher.update(header)
-    print(header)
     ciphertext, tag = cipher.encrypt_and_digest(pad(data, 16))#Encrypts the data
     return(ciphertext + cipher.nonce + tag)#Returns encrypted data
 
@@ -29,25 +27,32 @@ def protect_firmware(infile, outfile, version, message, secret):
     # Load firmware binary from infile
     with open(infile, 'rb') as fp:
         firmware = fp.read()
-    #load secret key (256 bits)
+    #load secret key (256 bits) and header
     key = b""
+    header = b""
+
     with open (secret, "rb") as fp:
-        key = fp.read()
+        key = fp.readline()
+        key = key[0 : len(key) - 1]
+        header = fp.readline()
+        print(key)
+        print(header)
+
 
     encrypted = b""
 
     i = 0
     for i in range (0, len(firmware), 15):#Breaks firmware binary into chunks and runs those chunks through encrypt(). Uses keys from 
-        encrypted += encrypt((p8(2) + firmware[i : i + 15]), key)
+        encrypted += encrypt((p8(2) + firmware[i : i + 15]), key, header)
     if (len(firmware) // 15 != 0):
-        encrypted += encrypt((p8(2) + firmware[i : len(firmware)]), key)
+        encrypted += encrypt((p8(2) + firmware[i : len(firmware)]), key, header)
     print(encrypted)
 
     # Append null-terminated message to end of firmware
-    firmware_and_message = firmware + encrypt(message.encode(), key)
+    firmware_and_message = firmware + encrypt(message.encode(), key, header)
 
     # Pack message type as a uint8, and version, firmware length and message length as uint16s and encrypts them
-    beginFrame = encrypt(p8(1) + p16(version) + p16(len(firmware)) + p16(len(message)), key)
+    beginFrame = encrypt(p8(1) + p16(version) + p16(len(firmware)) + p16(len(message)), key, header)
     # Append firmware and message to metadata
     firmware_blob = beginFrame + firmware_and_message
 
