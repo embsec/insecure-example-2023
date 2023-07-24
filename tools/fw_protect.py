@@ -35,18 +35,20 @@ def protect_firmware(infile, outfile, version, message, secret):
 
     encrypted = b""
 
+    i = 0
     for i in range (0, len(firmware), 15):#Breaks firmware binary into chunks and runs those chunks through encrypt(). Uses keys from 
         encrypted += encrypt((p8(2) + firmware[i : i + 15]), key)
+    if (len(firmware) // 15 != 0):
+        encrypted += encrypt((p8(2) + firmware[i : len(firmware)]), key)
     print(encrypted)
 
     # Append null-terminated message to end of firmware
-    firmware_and_message = firmware + message.encode() + b'\00'
+    firmware_and_message = firmware + encrypt(message.encode(), key)
 
-    # Pack version and size into two little-endian shorts
-    metadata = struct.pack('<HH', version, len(firmware))
-
+    # Pack message type as a uint8, and version, firmware length and message length as uint16s and encrypts them
+    beginFrame = encrypt(p8(1) + p16(version) + p16(len(firmware)) + p16(len(message)), key)
     # Append firmware and message to metadata
-    firmware_blob = metadata + firmware_and_message
+    firmware_blob = beginFrame + firmware_and_message
 
     # Write firmware blob to outfile
     with open(outfile, 'wb+') as outfile:
