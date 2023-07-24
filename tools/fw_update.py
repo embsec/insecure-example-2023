@@ -21,7 +21,6 @@ We write a frame to the bootloader, then wait for it to respond with an
 OK message so we can write the next frame. The OK message in this case is
 just a zero
 
-test line
 """
 
 import argparse
