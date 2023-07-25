@@ -42,7 +42,7 @@ def protect_firmware(infile, outfile, version, message, secret):
     i = 0
     for i in range (0, len(firmware), 15):#Breaks firmware binary into chunks and runs those chunks through encrypt(). Uses keys from secret_build_output.txt.
         encrypted += encrypt((p8(2, endian = "big") + firmware[i : i + 15]), key, header)
-    if (len(firmware) // 15 != 0):
+    if (len(firmware) % 15 != 0):
         encrypted += encrypt(pad((p8(2, endian = "big") + firmware[i : len(firmware)]), 16), key, header)
     print(encrypted)
 
