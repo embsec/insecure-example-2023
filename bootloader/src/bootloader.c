@@ -236,6 +236,13 @@ void load_firmware(void){
      */
     error = aes_decrypt(data_arr);
 
+    // Check message (0x1)
+    if (data_arr[0] != 1){
+        uart_write_str(UART2, "Incorrect Message Type");
+        uart_write(UART1, ERROR); // Reject the metadata.
+        SysCtlReset();            // Reset device
+    }
+
     // Get version (0x2)
     version = (uint16_t)data_arr[1];
     version |= (uint16_t)data_arr[2] << 8;
@@ -243,6 +250,19 @@ void load_firmware(void){
     uart_write_str(UART2, "Received Firmware Version: ");
     uart_write_hex(UART2, version);
     nl(UART2);
+
+    // Compare to old version and abort if older (note special case for version 0).
+    uint16_t old_version = *fw_version_address;
+    // If version 0 (debug), don't change version
+    if (version == 0){
+        version = old_version;
+    // If version less than old version, reject and reset
+    } else if (version < old_version){
+        uart_write_str(UART2, "Incorrect Version");
+        uart_write(UART1, ERROR); // Reject the metadata.
+        SysCtlReset();            // Reset device
+        return;
+    }
 
     // Get release message size in bytes (0x2)
     r_size = (uint16_t)data_arr[5];
@@ -259,20 +279,6 @@ void load_firmware(void){
     uart_write_str(UART2, "Received Firmware Size: ");
     uart_write_hex(UART2, f_size);
     nl(UART2);
-
-    // Compare to old version and abort if older (note special case for version 0).
-    uint16_t old_version = *fw_version_address;
-    // If version 0 (debug), don't change version
-    if (version == 0){
-        version = old_version;
-    
-    // If version less than old version, reject and reset
-    } else if (version < old_version){
-        uart_write_str(UART2, "Incorrect Version: ");
-        uart_write(UART1, ERROR); // Reject the metadata.
-        SysCtlReset();            // Reset device
-        return;
-    }
 
     // Write new firmware size and version to Flash
     // Create 32 bit word for flash programming, version is at lower address, size is at higher address
