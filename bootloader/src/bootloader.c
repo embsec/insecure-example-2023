@@ -206,7 +206,7 @@ int aes_decrypt(uint8_t *arr){
     for (int i = 0; i < 16; i += 1) {
         arr[i] = data[i];
     }
-    return validTag;
+    return validTag;    // Note: 1 means ok, 0 means something went wrong
 }
 
 /*
@@ -216,32 +216,49 @@ void load_firmware(void){
     int frame_length = 0;
     int read = 0;
     uint32_t rcv = 0;
+    uint8_t data_arr[16];
+    int error;
 
     uint32_t data_index = 0;
     uint32_t page_addr = FW_BASE;
-    uint32_t version = 0;
-    uint32_t size = 0;    
-
+    uint8_t msg_type = 5;
+    uint16_t version = 0;
+    uint16_t f_size = 0;
+    uint16_t r_size = 0;
 
     // Read first packet
-    // Get version as 16 bytes
-    rcv = uart_read(UART1, BLOCKING, &read);
-    version = (uint32_t)rcv;
-    rcv = uart_read(UART1, BLOCKING, &read);
-    version |= (uint32_t)rcv << 8;
+    error = aes_decrypt(data_arr);
+    /*
+     * To-do
+     * - check version#: does it seem right?
+     */
+
+    // Get message type (0x1)
+    msg_type = data_arr[0];
+    // Note: should also add check for message type here
+
+    // Get version (0x2)
+    version = (uint16_t)data_arr[1];
+    version |= (uint16_t)data_arr[2] << 8;
 
     uart_write_str(UART2, "Received Firmware Version: ");
     uart_write_hex(UART2, version);
     nl(UART2);
 
-    // Get size as 16 bytes 
-    rcv = uart_read(UART1, BLOCKING, &read);
-    size = (uint32_t)rcv;
-    rcv = uart_read(UART1, BLOCKING, &read);
-    size |= (uint32_t)rcv << 8;
+    // Get release message size in bytes (0x2)
+    r_size = (uint16_t)data_arr[5];
+    r_size |= (uint16_t)data_arr[6] << 8;
+
+    uart_write_str(UART2, "Received Release Message Size: ");
+    uart_write_hex(UART2, r_size);
+    nl(UART2);
+
+    // Get firmware size in bytes (0x2) 
+    f_size = (uint16_t)data_arr[3];
+    f_size |= (uint16_t)data_arr[4] << 8;
 
     uart_write_str(UART2, "Received Firmware Size: ");
-    uart_write_hex(UART2, size);
+    uart_write_hex(UART2, f_size);
     nl(UART2);
 
     // Compare to old version and abort if older (note special case for version 0).
