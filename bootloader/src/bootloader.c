@@ -18,6 +18,7 @@
 
 // Application Imports
 #include "uart.h"
+#include "keys.h"
 
 // Forward Declarations
 void load_initial_firmware(void);
