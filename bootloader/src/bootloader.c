@@ -161,8 +161,8 @@ void load_initial_firmware(void){
 
 
 /*
- * Decrypt: param is uint8_t arr[16]
- * GCM: https://bearssl.org/apidoc/structbr__gcm__context.html
+ * Decrypt: param is an uint8_t arr[16]
+ * GCM Reference: https://bearssl.org/apidoc/structbr__gcm__context.html
  */
 int aes_decrypt(uint8_t *arr){
     // Misc vars for reading
@@ -215,27 +215,21 @@ int aes_decrypt(uint8_t *arr){
 void load_firmware(void){
     int frame_length = 0;
     int read = 0;
-    uint32_t rcv = 0;
+    uint32_t rcv = 0; // This and read should be not here soon
     uint8_t data_arr[16];
     int error;
 
     uint32_t data_index = 0;
     uint32_t page_addr = FW_BASE;
     uint8_t msg_type = 5;
+
+    // 1st frame data
     uint16_t version = 0;
     uint16_t f_size = 0;
     uint16_t r_size = 0;
 
     // Read first packet
     error = aes_decrypt(data_arr);
-    /*
-     * To-do
-     * - check version#: does it seem right?
-     */
-
-    // Get message type (0x1)
-    msg_type = data_arr[0];
-    // Note: should also add check for message type here
 
     // Get version (0x2)
     version = (uint16_t)data_arr[1];
@@ -262,6 +256,7 @@ void load_firmware(void){
     nl(UART2);
 
     // Compare to old version and abort if older (note special case for version 0).
+    // Might also want to check if message type adds up
     uint16_t old_version = *fw_version_address;
 
     if (version != 0 && version < old_version){
