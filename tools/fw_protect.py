@@ -46,7 +46,7 @@ def protect_firmware(infile, outfile, version, message, secret):
         encrypted += encrypt((p8(2) + firmware[i : len(firmware)]), key, header)
     print(encrypted)
 
-    # Append null-terminated message to end of firmware
+    # Append message to end of firmware
     firmware_and_message = firmware + encrypt(message.encode(), key, header)
 
     # Pack message type as a uint8, and version, firmware length and message length as uint16s and encrypts them
