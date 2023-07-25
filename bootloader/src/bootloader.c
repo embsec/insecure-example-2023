@@ -14,7 +14,7 @@
 
 // Library Imports
 #include <string.h>
-#include <bearssl.h>
+#include <bearssl_aead.h>   // Takes less than bearssl.h
 
 // Application Imports
 #include "uart.h"
@@ -165,39 +165,49 @@ void load_initial_firmware(void){
  * GCM: https://bearssl.org/apidoc/structbr__gcm__context.html
  */
 int aes_decrypt(void){
+    // Misc vars for reading
     int read = 0;
     uint32_t rcv = 0;
 
-    // I wish ints were 48 bytes. They are 4.
-    int data = 0;
-    int tag = 0;
-    int nonce = 0;
+    // Init packet parts: each is 16 bytes
+    uint8_t data[16];
+    uint8_t tag[16];
+    uint8_t nonce[16];
 
-    // Get 16 bytes (0x30)
+    // Read packet
     for (int i = 0; i < 16; i += 1) {
         // Note: uart_read only reads 1 byte @ a time
         rcv = uart_read(UART1, BLOCKING, &read);
-        data |= (uint32_t)rcv << 8;
+        data[i] = rcv;
+    }
+    for (int i = 0; i < 16; i += 1) {
+        rcv = uart_read(UART1, BLOCKING, &read);
+        tag[i] = rcv;
+    }
+    for (int i = 0; i < 16; i += 1) {
+        rcv = uart_read(UART1, BLOCKING, &read);
+        nonce[i] = rcv;
     }
 
-    // Just imagine that I got everything
-    // Initialize CTR struct & GHASH? idk
+    // Initialize CTR struct & GHASH
     br_block_ctr_class counter = { &counter, &KEY, 16};
-    br_ghash ghash;
+    br_ghash ghash; // As far as I know ghash doesn't have to be initialized?
 
     // Initialize GCM struct
     br_gcm_context context;
-    br_gcm_init(&context, &counter, ghash); // Does something?
-    br_gcm_reset(&context, nonce, 16); // Adds nonce
+    br_gcm_init(&context, &counter, ghash);
+    br_gcm_reset(&context, nonce, 16);
 
-    // Decrypt (this works enough)
-    br_gcm_run(&context, 0, &data, 16);
+    // Decrypt data
+    br_gcm_run(&context, 0, data, 16);
     
     // Check tag. If invalid, return 0.
-    uint32_t validTag = br_gcm_check_tag(&context, &tag);
+    uint32_t validTag = br_gcm_check_tag(&context, tag);
     if (validTag == 0) {
+        uart_write_str(UART2, "Bad packet :(");
         return 0;
     } else {
+        uart_write_str(UART2, "Good packet");
         return data;
     }
 }
