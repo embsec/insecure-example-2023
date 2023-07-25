@@ -74,7 +74,4 @@ with open("secret_build_output.txt", "wb") as file:
     file.write(aes_key + b"\n")
     file.write(header)
 
-# reads the txt file in byte format and prints out the first line (aes key) in the terminal 
-with open ("../bootloader/secret_build_output.txt", "rb") as file:
-    print(file.readline())
 
