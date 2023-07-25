@@ -18,6 +18,7 @@
 
 // Application Imports
 #include "uart.h"
+#include "../keys.h"
 
 // Forward Declarations
 void load_initial_firmware(void);
@@ -305,18 +306,17 @@ void load_firmware(void){
     nl(UART2);
 
     // Compare to old version and abort if older (note special case for version 0).
-    // Might also want to check if message type adds up
     uint16_t old_version = *fw_version_address;
-
-    if (version != 0 && version < old_version){
+    // If version 0 (debug), don't change version
+    if (version == 0){
+        version = old_version;
+    
+    // If version less than old version, reject and reset
+    } else if (version < old_version){
+        uart_write_str(UART2, "Incorrect Version: ");
         uart_write(UART1, ERROR); // Reject the metadata.
         SysCtlReset();            // Reset device
         return;
-    }
-
-    if (version == 0){
-        // If debug firmware, don't change version
-        version = old_version;
     }
 
     // Write new firmware size and version to Flash
