@@ -17,7 +17,7 @@ def encrypt(data, key, header):
 
     cipher = AES.new(key, AES.MODE_GCM)#instantiates an AES object
     cipher.update(header)#Updates it to use common header (also on Stellaris)
-    ciphertext, tag = cipher.encrypt_and_digest(pad(data, 16))#Encrypts the data
+    ciphertext, tag = cipher.encrypt_and_digest(data)#Encrypts the data
     return(ciphertext + tag + cipher.nonce)#Returns encrypted data
 
 
@@ -43,16 +43,16 @@ def protect_firmware(infile, outfile, version, message, secret):
     for i in range (0, len(firmware), 15):#Breaks firmware binary into chunks and runs those chunks through encrypt(). Uses keys from secret_build_output.txt.
         encrypted += encrypt((p8(2, endian = "big") + firmware[i : i + 15]), key, header)
     if (len(firmware) // 15 != 0):
-        encrypted += encrypt((p8(2, endian = "big") + firmware[i : len(firmware)]), key, header)
+        encrypted += encrypt(pad((p8(2, endian = "big") + firmware[i : len(firmware)]), 16), key, header)
     print(encrypted)
 
     # Append message to end of firmware
     firmware_and_message = firmware + encrypt(message.encode(), key, header)
 
     # Pack message type as a uint8, and version, firmware length and message length as uint16s and encrypts them
-    beginFrame = encrypt(p8(1, endian = "big") + p16(version, endian = "big") + p16(len(firmware), endian = "big") + p16(len(message), endian = "big"), key, header)
+    beginFrame = encrypt(pad(p8(1, endian = "big") + p16(version, endian = "big") + p16(len(firmware), endian = "big") + p16(len(message), endian = "big"), 16), key, header)
     #Generates end frame and encrypts it
-    endFrame = encrypt(p8(3, endian = "big"), key, header)
+    endFrame = encrypt(pad(p8(3, endian = "big"), 16), key, header)
     # Append firmware and message to metadata
     firmware_blob = beginFrame + firmware_and_message + endFrame
 
