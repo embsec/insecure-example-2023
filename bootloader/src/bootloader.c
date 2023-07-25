@@ -229,6 +229,10 @@ void load_firmware(void){
     uint16_t r_size = 0;
 
     // Read first packet
+    /*
+     * error: is 0 if bad, 1 if good
+     * data_arr: contains the packet (each item is a byte)
+     */
     error = aes_decrypt(data_arr);
 
     // Get version (0x2)
