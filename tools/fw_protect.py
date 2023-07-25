@@ -18,7 +18,7 @@ def encrypt(data, key, header):
     cipher = AES.new(key, AES.MODE_GCM)#instantiates an AES object
     cipher.update(header)#Updates it to use common header (also on Stellaris)
     ciphertext, tag = cipher.encrypt_and_digest(data)#Encrypts the data
-    print("SIZE: " + str(len(ciphertext)))
+    # print("SIZE: " + str(len(ciphertext))) #DEBUG
     return(ciphertext + tag + cipher.nonce)#Returns encrypted data
 
 
@@ -46,7 +46,6 @@ def protect_firmware(infile, outfile, version, message, secret):
             encrypted += encrypt((p8(2, endian = "big") + firmware[i : i + 15]), key, header)
     if (len(firmware) % 15 != 0):
         encrypted += encrypt(pad((p8(2, endian = "big") + firmware[i : len(firmware)]), 16), key, header)
-    print(encrypted)
 
     # Append message to end of firmware
     #firmware_and_message = firmware + encrypt(pad(p8(5, endian = "big") + message.encode(), 16), key, header)
@@ -57,7 +56,6 @@ def protect_firmware(infile, outfile, version, message, secret):
     for i in range (0, len(messageBin), 15):#Breaks message into chunks and runs those chunks through encrypt(). Uses keys from secret_build_output.txt.
         if ((len(messageBin) - i) // 15 != 0):
             messageEncrypted += encrypt((p8(5, endian = "big") + messageBin[i : i + 15]), key, header)
-        print("Full Message Block")
         
     if (len(messageBin) % 15 != 0):#If what's left is too small, it gets broken up and sent
         messageEncrypted += encrypt(pad((p8(5, endian = "big") + messageBin[i : len(firmware)]), 16), key, header)
