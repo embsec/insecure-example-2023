@@ -42,9 +42,9 @@ def protect_firmware(infile, outfile, version, message, secret):
 
     i = 0
     for i in range (0, len(firmware), 15):#Breaks firmware binary into chunks and runs those chunks through encrypt(). Uses keys from secret_build_output.txt.
-        if ((len(firmware) - i) // 15 != 0):
+        if ((len(firmware) - i) // 15 != 0):#If the firmware fills a full chunk, encrypt 15 bytes
             encrypted += encrypt((p8(2, endian = "big") + firmware[i : i + 15]), key, header)
-    if (len(firmware) % 15 != 0):
+    if (len(firmware) % 15 != 0):#Pads what's left over
         encrypted += encrypt(pad((p8(2, endian = "big") + firmware[i : len(firmware)]), 16), key, header)
 
     # Append message to end of firmware
@@ -54,10 +54,10 @@ def protect_firmware(infile, outfile, version, message, secret):
     messageEncrypted = b""
     
     for i in range (0, len(messageBin), 15):#Breaks message into chunks and runs those chunks through encrypt(). Uses keys from secret_build_output.txt.
-        if ((len(messageBin) - i) // 15 != 0):
+        if ((len(messageBin) - i) // 15 != 0):#If the firmware fills a full chunk, encrypt 15 bytes
             messageEncrypted += encrypt((p8(5, endian = "big") + messageBin[i : i + 15]), key, header)
         
-    if (len(messageBin) % 15 != 0):#If what's left is too small, it gets broken up and sent
+    if (len(messageBin) % 15 != 0):#Pads what's left over
         messageEncrypted += encrypt(pad((p8(5, endian = "big") + messageBin[i : len(firmware)]), 16), key, header)
     firmware_and_message = firmware + messageEncrypted
     
