@@ -161,10 +161,10 @@ void load_initial_firmware(void){
 
 
 /*
- * decrypt
+ * Decrypt: param is uint8_t arr[16]
  * GCM: https://bearssl.org/apidoc/structbr__gcm__context.html
  */
-int aes_decrypt(void){
+int aes_decrypt(uint8_t *arr){
     // Misc vars for reading
     int read = 0;
     uint32_t rcv = 0;
@@ -190,31 +190,27 @@ int aes_decrypt(void){
     }
 
     // Initialize CTR struct & GHASH
-    br_block_ctr_class counter = { &counter, &KEY, 16};
-    br_ghash ghash; // As far as I know ghash doesn't have to be initialized?
+    br_block_ctr_class counter = { &counter, &KEY, 16}; // Add key later!!!!
+    br_ghash ghash;
 
     // Initialize GCM struct
     br_gcm_context context;
     br_gcm_init(&context, &counter, ghash);
     br_gcm_reset(&context, nonce, 16);
 
-    // Decrypt data
+    // Decrypt data and check tag
     br_gcm_run(&context, 0, data, 16);
-    
-    // Check tag. If invalid, return 0.
     uint32_t validTag = br_gcm_check_tag(&context, tag);
-    if (validTag == 0) {
-        uart_write_str(UART2, "Bad packet :(");
-        return 0;
-    } else {
-        uart_write_str(UART2, "Good packet");
-        return data;
+
+    // Add data to arr, then return if everything's ok
+    for (int i = 0; i < 16; i += 1) {
+        arr[i] = data[i];
     }
+    return validTag;
 }
 
 /*
  * Load the firmware into flash.
- * This is where I stick all the code
  */
 void load_firmware(void){
     int frame_length = 0;
@@ -226,6 +222,8 @@ void load_firmware(void){
     uint32_t version = 0;
     uint32_t size = 0;    
 
+
+    // Read first packet
     // Get version as 16 bytes
     rcv = uart_read(UART1, BLOCKING, &read);
     version = (uint32_t)rcv;
