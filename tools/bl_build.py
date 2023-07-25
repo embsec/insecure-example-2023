@@ -74,4 +74,8 @@ with open("secret_build_output.txt", "wb") as file:
     file.write(aes_key + b"\n")
     file.write(header)
 
+# Write the key to a C header
+with open("keys.h", "w") as file:
+    file.write('#define KEY ' + aes_key + "\n")
+    file.write('#define HEADER ' + header)
 
