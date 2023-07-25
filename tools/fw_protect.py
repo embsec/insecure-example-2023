@@ -51,7 +51,7 @@ def protect_firmware(infile, outfile, version, message, secret):
 
     # Pack message type as a uint8, and version, firmware length and message length as uint16s and encrypts them
     beginFrame = encrypt(p8(1, endian = "big") + p16(version, endian = "big") + p16(len(firmware), endian = "big") + p16(len(message), endian = "big"), key, header)
-    
+    #Generates end frame and encrypts it
     endFrame = encrypt(p8(3, endian = "big"), key, header)
     # Append firmware and message to metadata
     firmware_blob = beginFrame + firmware_and_message + endFrame
