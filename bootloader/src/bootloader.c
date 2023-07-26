@@ -9,7 +9,7 @@ TODO:
 - Reina:
 - process/decrypt the data  - in progress
 - check message type for data packets (in frame decrypt) - unfinished
-- write data to flash - unfinished
+- write data to flash - in progress
 
 - Shivika and Caroline : 
 - write start and end frame to flash (?) - unfinished
@@ -357,21 +357,24 @@ void load_firmware(void){
 
             error_counter += error;
             if(error_counter > 5){
-                uart_write_str(UART2, "Too much error. Restarting");
+                uart_write_str(UART2, "Too much error. Restarting...");
                 uart_write(UART1, END);
                 SysCtlReset();
 
             //saving data
             if(error == 0){
-                //store i into UART
+                //store i into UART and write to flash
                 uart_write_str(UART2, "Successfully sent data\ndata: ");
                 uart_write_hex(UART2, i);
+                uint32_t data_arr = ((f_size & 0xFFFF) << 16) | (version & 0xFFFF);
+                program_flash(data_arr, (uint8_t*)(&data_arr), 4);
+                uart_write(UART1, OK);
                 return 0;
             }
-
             }
 
         } while (error != 0);
+
     }
 
     // Release message packets
