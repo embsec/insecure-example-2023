@@ -293,9 +293,23 @@ void load_firmware(void){
 
     uart_write(UART1, OK); // Acknowledge the metadata.
     
-    //retrieve message type
-    
+    //retrieve message type 0xf
+    /*two loops
+    one for firmware
+    -   loop until it reads the data packets
+    -   while loop has frame length amount of frames for the firmware
+    -   succcessful packet = deincrements firm thing breaks
+    one for release message
+    -   to be done soon
+    delete this portion after success
+- */
 
+    uint32_t retrieved_data = 0;
+    uint32_t data_arr[32]; 
+    for (int i = 0; i < f_size; i += 15){
+        retrieved_data = encrypt_aes(data_arr[i]);
+        return retrieved_data;
+    }
 
     //retrieve data
 
