@@ -1,6 +1,22 @@
 // Copyright 2023 The MITRE Corporation. ALL RIGHTS RESERVED
 // Approved for public release. Distribution unlimited 23-02181-13.
 
+/*
+TODO: 
+- Eleanor : 
+-connect key for decrypting 
+
+- Reina:
+- process/decrypt the data  - in progress
+- check message type for data packets (in frame decrypt) - unfinished
+- write data to flash - unfinished
+
+- Shivika and Caroline : 
+- write start and end frame to flash (?) - unfinished
+- write message to flash, and then delete - unfinished
+- 
+*/
+
 // Hardware Imports
 #include "inc/hw_memmap.h" // Peripheral Base Addresses
 #include "inc/lm3s6965.h"  // Peripheral Bit Masks and Registers
@@ -182,6 +198,7 @@ int frame_decrypt(uint8_t *arr){
     // Read packet
     for (int i = 0; i < 16; i += 1) {
         // Note: uart_read only reads 1 byte @ a time
+        //Note: data includes message as first byte
         rcv = uart_read(UART1, BLOCKING, &read);
         data[i] = rcv;
     }
@@ -243,7 +260,7 @@ void load_firmware(void){
     uint16_t f_size = 0;
     uint16_t r_size = 0;
 
-    // Read first packet
+    // Read first packet ONLY
     do {
         error = frame_decrypt(data_arr);
 
@@ -326,12 +343,13 @@ void load_firmware(void){
 - */
 
     // firmware data 0xf
-    for (int i = 0; i < f_size; i += 15){
+    for (int i = 0; i < f_size; i += 16){
         do {
-            error = encrypt_aes(data_arr);
+            uint32_t data_blob = data_arr[i];
+            error = frame_decrypt(data_arr);
             if (error == 1){
                 uart_write_str(UART2, "error decrypting data array");
-            }else if (data_arr[0] ! = 3){
+            }else if (data_arr[0] != 3){
                 uart_write_str(UART2, "incorrect data type");
 
             }
