@@ -242,7 +242,7 @@ void load_firmware(void){
     uint16_t r_size = 0;
 
     // Read first packet
-    while (error_counter > 0) {
+    do {
         error = aes_decrypt(data_arr);
 
         // Get version (0x2)
@@ -300,11 +300,11 @@ void load_firmware(void){
             SysCtlReset();
             return;
         }
-    }
+    } while (error_counter > 0);
 
     // Write new firmware size and version to Flash
     // Create 32 bit word for flash programming, version is at lower address, size is at higher address
-    uint32_t metadata = ((size & 0xFFFF) << 16) | (version & 0xFFFF);
+    uint32_t metadata = ((f_size & 0xFFFF) << 16) | (version & 0xFFFF);
     program_flash(METADATA_BASE, (uint8_t *)(&metadata), 4);
 
     uart_write(UART1, OK); // Acknowledge the metadata.
