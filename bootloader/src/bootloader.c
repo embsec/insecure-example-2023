@@ -326,16 +326,42 @@ void load_firmware(void){
 
     for (int i = 0; i < f_size; i += 15){
         do {
-            error = encrypt_aes(data_arr);
+            error = aes_decrypt(data_arr);
 
         } while (error != 0)
     }
 
     // Release message packets
     for (int i = 0; i < r_size; i += 15){
+        // Reads and checks for errors
         do{
+            error = aes_decrypt(data_arr);
 
+            // Error handling
+            if (error == 1){
+                uart_write_str(UART2, "Incorrect GHASH");
+                uart_write(UART1, ERROR);
+            } else if (data_arr[0] != 2){
+                uart_write_str(UART2, "Incorrect Message Type");
+                uart_write(UART1, ERROR);
+                error = 1;
+            }
+
+            // Check if too many errors
+            error_counter += error;
+            if (error_counter > 10) {
+                uart_write_str(UART2, "Too many bad packets");
+                uart_write(UART1, END);
+                SysCtlReset();
+                return;
+            }
         } while (error != 0);
+        
+        // Reset counter after success
+        error_counter = 0;
+
+        // Insert write to flash below
+        // Remember: data being written is data_arr[1] --> data_arr[15]
     }
 
     //retrieve data
