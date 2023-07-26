@@ -13,10 +13,10 @@ from Crypto.Cipher import AES
 from  pwn import *
 
 def randPad(data, size):#Pads using random data cus we're too cool for pkcs7
-    toPad = size - len(data) % size
+    toPad = size - len(data) % size#Calculates how many bytes of padding to add
     randData = b""
     for i in range(toPad):
-        randData += p8(random.randint(0, 255), endian = "big")
+        randData += p8(random.randint(0, 255), endian = "big")#Generates random bytes
     
     return data + randData
 
