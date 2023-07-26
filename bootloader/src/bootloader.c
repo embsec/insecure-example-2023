@@ -308,6 +308,12 @@ void load_firmware(void){
     program_flash(METADATA_BASE, (uint8_t *)(&metadata), 4);
 
     uart_write(UART1, OK); // Acknowledge the metadata.
+    
+    //retrieve message type
+    
+
+
+    //retrieve data
 
     /* Loop here until you can get all your characters and stuff */
     while (1){
