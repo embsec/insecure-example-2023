@@ -194,7 +194,8 @@ int aes_decrypt(uint8_t *arr){
     }
 
     // Initialize CTR struct & GHASH
-    br_block_ctr_class counter = { &counter, &KEY, 16}; // Add key later!!!!
+    // Note: KEY should be a macro in keys.h
+    br_block_ctr_class counter = { &counter, &KEY, 16};
     br_ghash ghash;
 
     // Initialize GCM struct
@@ -282,25 +283,25 @@ void load_firmware(void){
             uart_write(UART1, ERROR);
             error = 1;
         // If version less than old version, reject and reset
-        } else if (version < old_version){
+        } else if (version <= old_version){
             uart_write_str(UART2, "Incorrect Version");
             uart_write(UART1, ERROR);
             error = 1;
         }
 
         // If there was an error, error_counter increases 1
-        // If no error, set error counter to 0, to exit loop
         // If error counter is too high, end
         error_counter += error;
-        if (error == 0) {
-            error_counter = 0;
-        } else if (error_counter > 10) {
+        if (error_counter > 10) {
             uart_write_str(UART2, "Too many bad packets");
             uart_write(UART1, END);
             SysCtlReset();
             return;
         }
-    } while (error_counter > 0);
+    } while (error != 0);
+    
+    // Resets counter
+    error_counter = 0;
 
     // Write new firmware size and version to Flash
     // Create 32 bit word for flash programming, version is at lower address, size is at higher address
@@ -310,7 +311,7 @@ void load_firmware(void){
     uart_write(UART1, OK); // Acknowledge the metadata.
 
 
-    /* Loop here until you can get all your characters and stuff */
+    /* Loop here until you can get all your characters and stuff (data frames) */
     while (1){
 
         // Get two bytes for the length.
@@ -385,18 +386,17 @@ void load_firmware(void){
 
         // Check if too many errors
         error_counter += error;
-        if (error == 0) {
-            error_counter = 0;
-        } else if (error_counter > 10) {
+        if (error_counter > 10) {
             uart_write_str(UART2, "Too many bad packets");
             uart_write(UART1, END);
             SysCtlReset();
             return;
         }
 
-    } while (error_counter > 0);
+    } while (error != 0);
     // End debug message
     uart_write_str(UART2, "All packets processed");
+    uart_write(UART1, OK); // Acknowledge the frame.
 }
 
 /*
