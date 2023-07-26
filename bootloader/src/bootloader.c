@@ -9,7 +9,7 @@ TODO:
 - Reina:
 - process/decrypt the data  - in progress
 - check message type for data packets (in frame decrypt) - unfinished
-- write data to flash - unfinished
+- write data to flash - in progress
 
 - Shivika and Caroline : 
 - write start and end frame to flash (?) - unfinished
@@ -331,7 +331,9 @@ void load_firmware(void){
     uart_write(UART1, OK); // Acknowledge the metadata.
 
 
-    /* Loop here until you can get all your characters and stuff (data frames) */
+    /* Loop here until you can get all your characters and stuff (data frames) 
+        take data from array, check message type, put in flash
+    */
     
     //retrieve message type 0xf
     /*two loops
@@ -347,7 +349,6 @@ void load_firmware(void){
     // firmware data 0xf
     for (int i = 0; i < f_size; i += 16){
         do {
-            uint32_t data_blob = data_arr[i];
             error = frame_decrypt(data_arr);
             if (error == 1){
                 uart_write_str(UART2, "error decrypting data array");
@@ -358,21 +359,34 @@ void load_firmware(void){
 
             error_counter += error;
             if(error_counter > 5){
-                uart_write_str(UART2, "Too much error. Restarting");
+                uart_write_str(UART2, "Too much error. Restarting...");
                 uart_write(UART1, END);
                 SysCtlReset();
 
             //saving data
             if(error == 0){
-                //store i into UART
+                //store i into UART and write to flash
                 uart_write_str(UART2, "Successfully sent data\ndata: ");
-                uart_write_hex(UART2, i);
+                uart_write_hex(UART2, error);
+
+                //splitting message type and raw data
+                uint32_t message_type = (data_arr[i] & 0x8000) >> 15; // the 1 bit is message_type
+                uint32_t raw_data = data_arr[i] & 0x7FFF; // the rest (aka 15 bits) are the raw_data
+
+                //it's split and now it's intended to be stored separately for eternity?
+                uint_t message_type_and_raw_data[2];
+                message_type_and_raw_data[0];
+                message_type_and_raw_data[1];
+
+                //uint32_t data_arr = ((f_size & 0xFFFF) << 16) | (version & 0xFFFF); << I commented it out just incase we arent supposed to split em separately for eternity
+                program_flash(message_type_and_raw_data, (uint8_t*)(&message_type_and_raw_data), 4);
+                uart_write(UART1, OK);
                 return 0;
             }
-
             }
 
         } while (error != 0);
+
     }
 
     // Release message packets
