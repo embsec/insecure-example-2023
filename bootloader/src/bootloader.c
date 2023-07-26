@@ -178,7 +178,6 @@ void load_initial_firmware(void){
     }
 }
 
-
 /*
  * Reads and decrypts a packet
  * Takes a uint8_t array with 16+ items. Deciphered data is written to the array
@@ -211,26 +210,29 @@ int frame_decrypt(uint8_t *arr){
         nonce[i] = rcv;
     }
 
-    // Initialize CTR struct & GHASH
+    // Initialize GCM, with counter and GHASH
     // Note: KEY should be a macro in keys.h
     br_block_ctr_class counter = { &counter, &KEY, 16};
     br_ghash ghash;
-
-    // Initialize GCM struct
     br_gcm_context context;
     br_gcm_init(&context, &counter, ghash);
     br_gcm_reset(&context, nonce, 16);
 
-    // Decrypt data and check tag
+    // Add header data
+    // Note: HEADER is also a macro in keys.h
+    br_gcm_aad_inject(&context, &HEADER, 16);
+    br_gcm_flip(&context);
+
+    // Decrypt data
     br_gcm_run(&context, 0, data, 16);
-    uint32_t validTag = br_gcm_check_tag(&context, tag);
 
     // Add data to arr, then return if everything's ok
     for (int i = 0; i < 16; i += 1) {
         arr[i] = data[i];
     }
 
-    if (validTag) {
+    // Check tag
+    if (br_gcm_check_tag(&context, tag)) {
         return 0;
     } else {
         return 1;
@@ -340,7 +342,7 @@ void load_firmware(void){
     one for release message
     -   to be done soon
     delete this portion after success
-- */
+    */
 
     // firmware data 0xf
     for (int i = 0; i < f_size; i += 16){
