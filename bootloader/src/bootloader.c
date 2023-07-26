@@ -35,9 +35,10 @@ long program_flash(uint32_t, unsigned char *, unsigned int);
 #define FLASH_WRITESIZE 4
 
 // Protocol Constants
-#define OK ((unsigned char)0x00)
-#define ERROR ((unsigned char)0x01)
-#define END ((unsigned char)0x02)
+// Note: first byte is message type
+#define OK ((unsigned char)0x40)
+#define ERROR ((unsigned char)0x41)
+#define END ((unsigned char)0x42)
 #define UPDATE ((unsigned char)'U')
 #define BOOT ((unsigned char)'B')
 
@@ -228,6 +229,7 @@ void load_firmware(void){
     // Used to read check for error
     uint8_t data_arr[16];
     int error;
+    int error_counter = 0;
 
     uint32_t data_index = 0;
     uint32_t page_addr = FW_BASE;
@@ -240,51 +242,65 @@ void load_firmware(void){
     uint16_t r_size = 0;
 
     // Read first packet
-    error = aes_decrypt(data_arr);
+    while (error_counter > 0) {
+        error = aes_decrypt(data_arr);
 
-    // Check message (0x1)
-    if (data_arr[0] != 1){
-        uart_write_str(UART2, "Incorrect Message Type");
-        uart_write(UART1, ERROR); // Reject the metadata.
-        SysCtlReset();            // Reset device
+        // Get version (0x2)
+        version = (uint16_t)data_arr[1];
+        version |= (uint16_t)data_arr[2] << 8;
+        uart_write_str(UART2, "Received Firmware Version: ");
+        uart_write_hex(UART2, version);
+        nl(UART2);
+        // Get release message size in bytes (0x2)
+        r_size = (uint16_t)data_arr[5];
+        r_size |= (uint16_t)data_arr[6] << 8;
+        uart_write_str(UART2, "Received Release Message Size: ");
+        uart_write_hex(UART2, r_size);
+        nl(UART2);
+        // Get firmware size in bytes (0x2) 
+        f_size = (uint16_t)data_arr[3];
+        f_size |= (uint16_t)data_arr[4] << 8;
+        uart_write_str(UART2, "Received Firmware Size: ");
+        uart_write_hex(UART2, f_size);
+        nl(UART2);
+
+        // Set up version compare
+        uint16_t old_version = *fw_version_address;
+        // If version 0 (debug), don't change version
+        if (version == 0){
+            version = old_version;
+        }
+
+        // Check for errors
+        if (error == 1){
+            uart_write_str(UART2, "Incorrect GHASH");
+            // Reject the metadata.
+            uart_write(UART1, ERROR);
+        } else if (data_arr[0] != 1){
+            uart_write_str(UART2, "Incorrect Message Type");
+            // Reject the metadata.
+            uart_write(UART1, ERROR);
+            error = 1;
+        // If version less than old version, reject and reset
+        } else if (version < old_version){
+            uart_write_str(UART2, "Incorrect Version");
+            uart_write(UART1, ERROR);
+            error = 1;
+        }
+
+        // If there was an error, error_counter increases 1
+        // If no error, set error counter to 0, to exit loop
+        // If error counter is too high, end
+        error_counter += error;
+        if (error == 0) {
+            error_counter = 0;
+        } else if (error_counter > 10) {
+            uart_write_str(UART2, "Too many bad packets");
+            uart_write(UART1, END);
+            SysCtlReset();
+            return;
+        }
     }
-
-    // Get version (0x2)
-    version = (uint16_t)data_arr[1];
-    version |= (uint16_t)data_arr[2] << 8;
-
-    uart_write_str(UART2, "Received Firmware Version: ");
-    uart_write_hex(UART2, version);
-    nl(UART2);
-
-    // Compare to old version and abort if older (note special case for version 0).
-    uint16_t old_version = *fw_version_address;
-    // If version 0 (debug), don't change version
-    if (version == 0){
-        version = old_version;
-    // If version less than old version, reject and reset
-    } else if (version < old_version){
-        uart_write_str(UART2, "Incorrect Version");
-        uart_write(UART1, ERROR); // Reject the metadata.
-        SysCtlReset();            // Reset device
-        return;
-    }
-
-    // Get release message size in bytes (0x2)
-    r_size = (uint16_t)data_arr[5];
-    r_size |= (uint16_t)data_arr[6] << 8;
-
-    uart_write_str(UART2, "Received Release Message Size: ");
-    uart_write_hex(UART2, r_size);
-    nl(UART2);
-
-    // Get firmware size in bytes (0x2) 
-    f_size = (uint16_t)data_arr[3];
-    f_size |= (uint16_t)data_arr[4] << 8;
-
-    uart_write_str(UART2, "Received Firmware Size: ");
-    uart_write_hex(UART2, f_size);
-    nl(UART2);
 
     // Write new firmware size and version to Flash
     // Create 32 bit word for flash programming, version is at lower address, size is at higher address
