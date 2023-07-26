@@ -17,6 +17,7 @@ import shutil
 import subprocess
 from Crypto.Hash import SHA256
 from Crypto.Cipher import AES
+from binascii import unhexlify
 
 REPO_ROOT = pathlib.Path(__file__).parent.parent.absolute()
 BOOTLOADER_DIR = os.path.join(REPO_ROOT, "bootloader")
@@ -75,7 +76,7 @@ with open("secret_build_output.txt", "wb") as file:
     file.write(header)
 
 # Write the key to a C header
-with open("keys.h", "w") as file:
-    file.write('#define KEY ' + aes_key + "\n")
-    file.write('#define HEADER ' + header)
+with open("keys.h", "wb") as file:
+    file.write(b'#define KEY 0x' + aes_key.hex().encode() + b"\n")
+    file.write(b'#define HEADER 0x' + header.hex().encode())
 
