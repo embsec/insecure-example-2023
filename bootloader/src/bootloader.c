@@ -160,35 +160,6 @@ void load_initial_firmware(void){
     }
 }
 
-int get_message_type_and_version(){
-    //recieve data and check for the message type
-    int recieved = 0;
-    int read_message_type_and_version = 0;
-    uint8_t message_type[8];
-    for (int i = 0; i < 8; i++){
-        recieved = uart_read(UART1, BLOCKING, &read_message_type_and_version);
-        message_type[i] = recieved;
-    }
-    //recieve data and check for the version
-    uint8_t version[16];
-    return version;
-
-    for (int j = 0; j < 16; j++){
-        recieved = uart_read(UART1, BLOCKING, &read_message_type_and_version);
-        version[j] = recieved;
-    }
-    return message_type;
-}
-
-
-int reg_data(){
-
-}
-
-//confirmation v
-int check_message_type(){
-
-}
 
 /*
  * Decrypt: param is an uint8_t arr[16]
@@ -266,12 +237,6 @@ void load_firmware(void){
      */
     error = aes_decrypt(data_arr);
 
-    //Get message type and version
-    get_message_type_and_version(UART1);
-    /* This should recieve the message_type and version
-    */
-
-
     // Check message (0x1)
     if (data_arr[0] != 1){
         uart_write_str(UART2, "Incorrect Message Type");
@@ -323,7 +288,8 @@ void load_firmware(void){
 
     uart_write(UART1, OK); // Acknowledge the metadata.
 
-    /* Loop here until you can get all your characters and stuff */
+
+    /* Loop for data chunks*/
     while (1){
 
         // Get two bytes for the length.
@@ -380,6 +346,8 @@ void load_firmware(void){
 
         uart_write(UART1, OK); // Acknowledge the frame.
     }                          // while(1)
+
+    // End frame starts here
 }
 
 /*
