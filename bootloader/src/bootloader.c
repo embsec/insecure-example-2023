@@ -395,6 +395,8 @@ void load_firmware(void){
         }
 
     } while (error_counter > 0);
+    // End debug message
+    uart_write_str(UART2, "All packets processed");
 }
 
 /*
