@@ -288,8 +288,7 @@ void load_firmware(void){
 
     uart_write(UART1, OK); // Acknowledge the metadata.
 
-
-    /* Loop for data chunks*/
+    /* Loop here until you can get all your characters and stuff */
     while (1){
 
         // Get two bytes for the length.
@@ -347,7 +346,7 @@ void load_firmware(void){
         uart_write(UART1, OK); // Acknowledge the frame.
     }                          // while(1)
 
-    // End frame starts here
+        // End frame starts here
 }
 
 /*
