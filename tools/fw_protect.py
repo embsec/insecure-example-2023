@@ -83,9 +83,7 @@ def protect_firmware(infile, outfile, version, message, secret):
     with open(outfile, 'wb+') as outfile:
         outfile.write(firmware_blob)
     
-    print(len(firmware_blob))
-    print(48 * math.ceil(len((firmware)) / 15) + 48 * math.ceil(len((message)) / 15) + 32 + 48)
-
+    
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Firmware Update Tool')
     parser.add_argument("--infile", help="Path to the firmware image to protect.", required=True)
