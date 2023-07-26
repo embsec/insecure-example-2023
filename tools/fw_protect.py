@@ -13,6 +13,7 @@ from Crypto.Cipher import AES
 from  pwn import *
 
 def randPad(data, size):#Pads using random data cus we're too cool for pkcs7
+
     toPad = size - len(data) % size#Calculates how many bytes of padding to add
     randData = b""
     for i in range(toPad):
@@ -79,7 +80,6 @@ def protect_firmware(infile, outfile, version, message, secret):
     # Write encrypted firmware blob to outfile
     with open(outfile, 'wb+') as outfile:
         outfile.write(firmware_blob)
-    
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Firmware Update Tool')
