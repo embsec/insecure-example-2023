@@ -331,6 +331,13 @@ void load_firmware(void){
         } while (error != 0)
     }
 
+    // Release message packets
+    for (int i = 0; i < r_size; i += 15){
+        do{
+
+        } while (error != 0);
+    }
+
     //retrieve data
 
     /* Loop here until you can get all your characters and stuff */
