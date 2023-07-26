@@ -96,6 +96,7 @@ int main(void){
 /*
  * Load initial firmware into flash (V2)
  */
+ 
 void load_initial_firmware(void){
 
     if (*((uint32_t *)(METADATA_BASE)) != 0xFFFFFFFF){
@@ -386,8 +387,6 @@ void load_firmware(void){
         // Insert write to flash below
         // Remember: data being written is data_arr[1] --> data_arr[15]
     }
-
-    //retrieve data
 
     /* Loop here until you can get all your characters and stuff */
     while (1){
