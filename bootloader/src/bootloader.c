@@ -96,7 +96,7 @@ int main(void){
 /*
  * Load initial firmware into flash (V2)
  */
- 
+
 void load_initial_firmware(void){
 
     if (*((uint32_t *)(METADATA_BASE)) != 0xFFFFFFFF){
@@ -169,7 +169,7 @@ void load_initial_firmware(void){
  * Returns an int, which is 0 if the GHASH matches and 1 if it does not
  * GCM Reference: https://bearssl.org/apidoc/structbr__gcm__context.html
  */
-int aes_decrypt(uint8_t *arr){
+int frame_decrypt(uint8_t *arr){
     // Misc vars for reading
     int read = 0;
     uint32_t rcv = 0;
@@ -245,7 +245,7 @@ void load_firmware(void){
 
     // Read first packet
     do {
-        error = aes_decrypt(data_arr);
+        error = frame_decrypt(data_arr);
 
         // Get version (0x2)
         version = (uint16_t)data_arr[1];
@@ -359,7 +359,7 @@ void load_firmware(void){
     for (int i = 0; i < r_size; i += 15){
         // Reads and checks for errors
         do{
-            error = aes_decrypt(data_arr);
+            error = frame_decrypt(data_arr);
 
             // Error handling
             if (error == 1){
@@ -449,7 +449,7 @@ void load_firmware(void){
     // End frame starts here
     do {
         // Read
-        error = aes_decrypt(data_arr);
+        error = frame_decrypt(data_arr);
 
         // Error handling
         if (error == 1){
