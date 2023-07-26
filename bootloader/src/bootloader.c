@@ -290,7 +290,7 @@ void load_firmware(void){
         }
 
         // If there was an error, error_counter increases 1
-        // If error counter is too high, end
+        // If error counter is too high, end (by returning out of main)
         error_counter += error;
         if (error_counter > 10) {
             uart_write_str(UART2, "Too many bad packets");
@@ -300,7 +300,7 @@ void load_firmware(void){
         }
     } while (error != 0);
     
-    // Resets counter
+    // Resets counter, since first frame successful
     error_counter = 0;
 
     // Write new firmware size and version to Flash
