@@ -329,7 +329,9 @@ void load_firmware(void){
     uart_write(UART1, OK); // Acknowledge the metadata.
 
 
-    /* Loop here until you can get all your characters and stuff (data frames) */
+    /* Loop here until you can get all your characters and stuff (data frames) 
+        take data from array, check message type, put in flash
+    */
     
     //retrieve message type 0xf
     /*two loops
@@ -339,13 +341,12 @@ void load_firmware(void){
     -   succcessful packet = deincrements firm thing breaks (done)
     one for release message
     -   to be done soon
-    delete this portion after success
+    delete this comment chunk after success
 - */
 
     // firmware data 0xf
     for (int i = 0; i < f_size; i += 16){
         do {
-            uint32_t data_blob = data_arr[i];
             error = frame_decrypt(data_arr);
             if (error == 1){
                 uart_write_str(UART2, "error decrypting data array");
