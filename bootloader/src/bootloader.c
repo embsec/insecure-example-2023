@@ -324,11 +324,11 @@ void load_firmware(void){
     delete this portion after success
 - */
 
-    uint32_t retrieved_data = 0;
-    uint32_t data_arr[32]; 
     for (int i = 0; i < f_size; i += 15){
-        retrieved_data = encrypt_aes(data_arr[i]);
-        return retrieved_data;
+        do {
+            error = encrypt_aes(data_arr);
+
+        } while (error != 0)
     }
 
     //retrieve data
