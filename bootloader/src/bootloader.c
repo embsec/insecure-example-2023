@@ -316,22 +316,43 @@ void load_firmware(void){
     //retrieve message type 0xf
     /*two loops
     one for firmware
-    -   loop until it reads the data packets
-    -   while loop has frame length amount of frames for the firmware
-    -   succcessful packet = deincrements firm thing breaks
+    -   loop until it reads the data packets (done)
+    -   while loop has frame length amount of frames for the firmware (done)
+    -   succcessful packet = deincrements firm thing breaks (done)
     one for release message
     -   to be done soon
     delete this portion after success
 - */
 
+    // firmware data 0xf
     for (int i = 0; i < f_size; i += 15){
         do {
             error = encrypt_aes(data_arr);
+            if (error == 1){
+                uart_write_str(UART2, "error decrypting data array");
+            }else if (data_arr[0] ! = 3){
+                uart_write_str(UART2, "incorrect data type");
 
-        } while (error != 0)
+            }
+
+            error_counter += error;
+            if(error_counter > 5){
+                uart_write_str(UART2, "Too much error. Restarting");
+                uart_write(UART1, END);
+                SysCtlReset();
+
+            //saving data
+            if(error == 0){
+                //store i into UART
+                uart_write_str(UART2, "Successfully sent data\ndata: ");
+                uart_write_hex(UART2, i);
+                return 0;
+            }
+
+            }
+
+        } while (error != 0);
     }
-
-    //retrieve data
 
     /* Loop here until you can get all your characters and stuff */
     while (1){
