@@ -35,9 +35,10 @@ long program_flash(uint32_t, unsigned char *, unsigned int);
 #define FLASH_WRITESIZE 4
 
 // Protocol Constants
-#define OK ((unsigned char)0x00)
-#define ERROR ((unsigned char)0x01)
-#define END ((unsigned char)0x02)
+// Note: first byte is message type
+#define OK ((unsigned char)0x40)
+#define ERROR ((unsigned char)0x41)
+#define END ((unsigned char)0x42)
 #define UPDATE ((unsigned char)'U')
 #define BOOT ((unsigned char)'B')
 
@@ -193,7 +194,8 @@ int aes_decrypt(uint8_t *arr){
     }
 
     // Initialize CTR struct & GHASH
-    br_block_ctr_class counter = { &counter, &KEY, 16}; // Add key later!!!!
+    // Note: KEY should be a macro in keys.h
+    br_block_ctr_class counter = { &counter, &KEY, 16};
     br_ghash ghash;
 
     // Initialize GCM struct
@@ -228,6 +230,7 @@ void load_firmware(void){
     // Used to read check for error
     uint8_t data_arr[16];
     int error;
+    int error_counter = 0;
 
     uint32_t data_index = 0;
     uint32_t page_addr = FW_BASE;
@@ -240,58 +243,75 @@ void load_firmware(void){
     uint16_t r_size = 0;
 
     // Read first packet
-    error = aes_decrypt(data_arr);
+    do {
+        error = aes_decrypt(data_arr);
 
-    // Check message (0x1)
-    if (data_arr[0] != 1){
-        uart_write_str(UART2, "Incorrect Message Type");
-        uart_write(UART1, ERROR); // Reject the metadata.
-        SysCtlReset();            // Reset device
-    }
+        // Get version (0x2)
+        version = (uint16_t)data_arr[1];
+        version |= (uint16_t)data_arr[2] << 8;
+        uart_write_str(UART2, "Received Firmware Version: ");
+        uart_write_hex(UART2, version);
+        nl(UART2);
+        // Get release message size in bytes (0x2)
+        r_size = (uint16_t)data_arr[5];
+        r_size |= (uint16_t)data_arr[6] << 8;
+        uart_write_str(UART2, "Received Release Message Size: ");
+        uart_write_hex(UART2, r_size);
+        nl(UART2);
+        // Get firmware size in bytes (0x2) 
+        f_size = (uint16_t)data_arr[3];
+        f_size |= (uint16_t)data_arr[4] << 8;
+        uart_write_str(UART2, "Received Firmware Size: ");
+        uart_write_hex(UART2, f_size);
+        nl(UART2);
 
-    // Get version (0x2)
-    version = (uint16_t)data_arr[1];
-    version |= (uint16_t)data_arr[2] << 8;
+        // Set up version compare
+        uint16_t old_version = *fw_version_address;
+        // If version 0 (debug), don't change version
+        if (version == 0){
+            version = old_version;
+        }
 
-    uart_write_str(UART2, "Received Firmware Version: ");
-    uart_write_hex(UART2, version);
-    nl(UART2);
+        // Check for errors
+        if (error == 1){
+            uart_write_str(UART2, "Incorrect GHASH");
+            // Reject the metadata.
+            uart_write(UART1, ERROR);
+        } else if (data_arr[0] != 1){
+            uart_write_str(UART2, "Incorrect Message Type");
+            // Reject the metadata.
+            uart_write(UART1, ERROR);
+            error = 1;
+        // If version less than old version, reject and reset
+        } else if (version <= old_version){
+            uart_write_str(UART2, "Incorrect Version");
+            uart_write(UART1, ERROR);
+            error = 1;
+        }
 
-    // Compare to old version and abort if older (note special case for version 0).
-    uint16_t old_version = *fw_version_address;
-    // If version 0 (debug), don't change version
-    if (version == 0){
-        version = old_version;
-    // If version less than old version, reject and reset
-    } else if (version < old_version){
-        uart_write_str(UART2, "Incorrect Version");
-        uart_write(UART1, ERROR); // Reject the metadata.
-        SysCtlReset();            // Reset device
-        return;
-    }
-
-    // Get release message size in bytes (0x2)
-    r_size = (uint16_t)data_arr[5];
-    r_size |= (uint16_t)data_arr[6] << 8;
-
-    uart_write_str(UART2, "Received Release Message Size: ");
-    uart_write_hex(UART2, r_size);
-    nl(UART2);
-
-    // Get firmware size in bytes (0x2) 
-    f_size = (uint16_t)data_arr[3];
-    f_size |= (uint16_t)data_arr[4] << 8;
-
-    uart_write_str(UART2, "Received Firmware Size: ");
-    uart_write_hex(UART2, f_size);
-    nl(UART2);
+        // If there was an error, error_counter increases 1
+        // If error counter is too high, end (by returning out of main)
+        error_counter += error;
+        if (error_counter > 10) {
+            uart_write_str(UART2, "Too many bad packets");
+            uart_write(UART1, END);
+            SysCtlReset();
+            return;
+        }
+    } while (error != 0);
+    
+    // Resets counter, since first frame successful
+    error_counter = 0;
 
     // Write new firmware size and version to Flash
     // Create 32 bit word for flash programming, version is at lower address, size is at higher address
-    uint32_t metadata = ((size & 0xFFFF) << 16) | (version & 0xFFFF);
+    uint32_t metadata = ((f_size & 0xFFFF) << 16) | (version & 0xFFFF);
     program_flash(METADATA_BASE, (uint8_t *)(&metadata), 4);
 
     uart_write(UART1, OK); // Acknowledge the metadata.
+
+
+    /* Loop here until you can get all your characters and stuff (data frames) */
     
     //retrieve message type 0xf
     /*two loops
@@ -372,14 +392,33 @@ void load_firmware(void){
     }                          // while(1)
 
     // End frame starts here
-    error = aes_decrypt(data_arr);
+    do {
+        // Read
+        error = aes_decrypt(data_arr);
 
-    // Check message (0x1)
-    if (data_arr[0] != 3){
-        uart_write_str(UART2, "Incorrect Message Type");
-        uart_write(UART1, ERROR); // Reject the metadata.
-        SysCtlReset();            // Reset device
-    }
+        // Error handling
+        if (error == 1){
+            uart_write_str(UART2, "Incorrect GHASH");
+            uart_write(UART1, ERROR);
+        } else if (data_arr[0] != 3){
+            uart_write_str(UART2, "Incorrect Message Type");
+            uart_write(UART1, ERROR);
+            error = 1;
+        }
+
+        // Check if too many errors
+        error_counter += error;
+        if (error_counter > 10) {
+            uart_write_str(UART2, "Too many bad packets");
+            uart_write(UART1, END);
+            SysCtlReset();
+            return;
+        }
+
+    } while (error != 0);
+    // End debug message
+    uart_write_str(UART2, "All packets processed");
+    uart_write(UART1, OK); // Acknowledge the frame.
 }
 
 /*
