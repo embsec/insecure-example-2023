@@ -18,6 +18,8 @@ import subprocess
 from Crypto.Hash import SHA256
 from Crypto.Cipher import AES
 from binascii import unhexlify
+from util import print_hex
+from  pwn import *
 
 REPO_ROOT = pathlib.Path(__file__).parent.parent.absolute()
 BOOTLOADER_DIR = os.path.join(REPO_ROOT, "bootloader")
@@ -76,7 +78,30 @@ with open("secret_build_output.txt", "wb") as file:
     file.write(header)
 
 # Write the key to a C header
-with open("keys.h", "wb") as file:
-    file.write(b'#define KEY 0x' + aes_key.hex().encode() + b"\n")
-    file.write(b'#define HEADER 0x' + header.hex().encode())
+aes_arr = "{0x"
+
+for byte in aes_key:
+    aes_arr += p8(byte).hex()
+    aes_arr += ", 0x"
+    
+aes_arr = aes_arr[:len(aes_arr) - 4]    
+aes_arr += "};"
+
+header_arr = "{0x"
+
+for byte in header:
+    header_arr += p8(byte).hex()
+    header_arr += ", 0x"
+    
+header_arr = header_arr[: len(header_arr) - 4]    
+header_arr += "};"
+
+
+with open("keys.h", "w") as file:
+    file.write('#ifndef KEYS_H' + "\n")
+    file.write('#define KEY' + "\n")
+    file.write('#define HEADER' + "\n")
+    file.write('const uint8_t KEY[32] = ' + aes_arr + "\n")
+    file.write('const uint8_t HEADER[16] = ' + header_arr + "\n")
+    file.write('#endif')
 
