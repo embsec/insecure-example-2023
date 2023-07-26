@@ -379,7 +379,7 @@ void load_firmware(void){
                 message_type_and_raw_data[0];
                 message_type_and_raw_data[1];
 
-                //uint32_t data_arr = ((f_size & 0xFFFF) << 16) | (version & 0xFFFF);
+                //uint32_t data_arr = ((f_size & 0xFFFF) << 16) | (version & 0xFFFF); << I commented it out just incase we arent supposed to split em separately for eternity
                 program_flash(message_type_and_raw_data, (uint8_t*)(&message_type_and_raw_data), 4);
                 uart_write(UART1, OK);
                 return 0;
