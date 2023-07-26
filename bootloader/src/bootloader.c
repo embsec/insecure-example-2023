@@ -162,7 +162,9 @@ void load_initial_firmware(void){
 
 
 /*
- * Decrypt: param is an uint8_t arr[16]
+ * Reads and decrypts a packet
+ * Takes a uint8_t array with 16+ items. Deciphered data is written to the array
+ * Returns an int, which is 0 if the GHASH matches and 1 if it does not
  * GCM Reference: https://bearssl.org/apidoc/structbr__gcm__context.html
  */
 int aes_decrypt(uint8_t *arr){
@@ -207,7 +209,12 @@ int aes_decrypt(uint8_t *arr){
     for (int i = 0; i < 16; i += 1) {
         arr[i] = data[i];
     }
-    return validTag;    // Note: 1 means ok, 0 means something went wrong
+
+    if (validTag) {
+        return 0;
+    } else {
+        return 1;
+    }
 }
 
 /*
@@ -217,6 +224,8 @@ void load_firmware(void){
     int frame_length = 0;
     int read = 0;
     uint32_t rcv = 0; // This and read should be not here soon
+
+    // Used to read check for error
     uint8_t data_arr[16];
     int error;
 
@@ -231,10 +240,6 @@ void load_firmware(void){
     uint16_t r_size = 0;
 
     // Read first packet
-    /*
-     * error: is 0 if bad, 1 if good
-     * data_arr: contains the packet (each item is a byte)
-     */
     error = aes_decrypt(data_arr);
 
     // Check message (0x1)
@@ -348,6 +353,14 @@ void load_firmware(void){
     }                          // while(1)
 
     // End frame starts here
+    error = aes_decrypt(data_arr);
+
+    // Check message (0x1)
+    if (data_arr[0] != 3){
+        uart_write_str(UART2, "Incorrect Message Type");
+        uart_write(UART1, ERROR); // Reject the metadata.
+        SysCtlReset();            // Reset device
+    }
 }
 
 /*
