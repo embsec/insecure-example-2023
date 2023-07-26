@@ -171,29 +171,13 @@ int get_message_type_and_version(){
     }
     //recieve data and check for the version
     uint8_t version[16];
+    return version;
 
     for (int j = 0; j < 16; j++){
         recieved = uart_read(UART1, BLOCKING, &read_message_type_and_version);
         version[j] = recieved;
     }
-    uint8_t message_type_and_version = 0;
-    message_type_and_version = (message_type, version);
-    
-    /*
-     * Hopefully returning |0x1 message type|0x2 version|
-     * Below: as k/l counts message_type_and_version is turned into a "string"
-     * It returns message_type, version
-     * Again, hopefully *cries*
-    */
-    for (int k = 0; k < 8; k++) {
-        message_type_and_version = (message_type_and_version << 8) | message_type[k];
-    }
-
-    for (int l = 0; l < 16; l++) {
-        message_type_and_version = (message_type_and_version << 8) | version[l];
-    }
-
-    return message_type_and_version;
+    return message_type;
 }
 
 
@@ -270,6 +254,7 @@ void load_firmware(void){
     uint8_t msg_type = 5;
 
     // 1st frame data
+    uint16_t message_type = 0;
     uint16_t version = 0;
     uint16_t f_size = 0;
     uint16_t r_size = 0;
@@ -280,6 +265,12 @@ void load_firmware(void){
      * data_arr: contains the packet (each item is a byte)
      */
     error = aes_decrypt(data_arr);
+
+    //Get message type and version
+    get_message_type_and_version(UART1);
+    /* This should recieve the message_type and version
+    */
+
 
     // Check message (0x1)
     if (data_arr[0] != 1){
