@@ -369,14 +369,32 @@ void load_firmware(void){
     }                          // while(1)
 
     // End frame starts here
-    error = aes_decrypt(data_arr);
+    do {
+        // Read
+        error = aes_decrypt(data_arr);
 
-    // Check message (0x1)
-    if (data_arr[0] != 3){
-        uart_write_str(UART2, "Incorrect Message Type");
-        uart_write(UART1, ERROR); // Reject the metadata.
-        SysCtlReset();            // Reset device
-    }
+        // Error handling
+        if (error == 1){
+            uart_write_str(UART2, "Incorrect GHASH");
+            uart_write(UART1, ERROR);
+        } else if (data_arr[0] != 3){
+            uart_write_str(UART2, "Incorrect Message Type");
+            uart_write(UART1, ERROR);
+            error = 1;
+        }
+
+        // Check if too many errors
+        error_counter += error;
+        if (error == 0) {
+            error_counter = 0;
+        } else if (error_counter > 10) {
+            uart_write_str(UART2, "Too many bad packets");
+            uart_write(UART1, END);
+            SysCtlReset();
+            return;
+        }
+
+    } while (error_counter > 0);
 }
 
 /*
