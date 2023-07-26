@@ -8,12 +8,9 @@ Firmware Bundle-and-Protect Tool
 
 """
 import argparse
-import struct
 import random
 from Crypto.Cipher import AES
 from  pwn import *
-
-import math
 
 def randPad(data, size):#Pads using random data cus we're too cool for pkcs7
     toPad = size - len(data) % size
