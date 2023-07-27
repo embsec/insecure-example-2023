@@ -393,7 +393,82 @@ void load_firmware(void){
         }
 
         error_counter = 0;
+
+        do{
+            // Get two bytes for the length.
+            rcv = uart_read(UART1, BLOCKING, &read);
+            frame_length = (int)rcv << 8;
+            rcv = uart_read(UART1, BLOCKING, &read);
+            frame_length += (int)rcv;
+
+            // Get the number of bytes specified
+            for (int i = 0; i < frame_length; ++i){
+                data[data_index] = uart_read(UART1, BLOCKING, &read);
+                data_index += 1;
+            }
+
+            // If we filed our page buffer, program it
+            if (data_index == FLASH_PAGESIZE || frame_length == 0){
+
+            if(frame_length == 0){
+                uart_write_str(UART2, "Got zero length frame.\n");
+                error = 1;
+            }
+            
+            // Try to write flash and check for error
+            if (program_flash(page_addr, message, data_index)){
+                uart_write(UART1, ERROR); // Reject the firmware
+                SysCtlReset();            // Reset device
+                error = 1;
+            }
+
+            error = (message);
+            // Try to write flash and check for error
+            if (program_flash(page_addr, message, data_index)){
+                uart_write(UART1, ERROR); // Reject the firmware
+                SysCtlReset();            // Reset device
+                error = 1;
+            }
+
+            // Verify flash program
+            if (memcmp(message, (void *) page_addr, data_index) != 0){
+                uart_write_str(UART2, "Flash check failed.\n");
+                uart_write(UART1, ERROR); // Reject the firmware
+                SysCtlReset();            // Reset device
+                error = 1;
+            }
+
+            error_counter += error;
+    
+            // Error timeout
+            if(error_counter > 10){
+                uart_write_str(UART2, "Too much error. Restarting...");
+                uart_write(UART1, END);
+                SysCtlReset();
+                return;
+            }
+        }while (error != 0)
+
+        // Write debugging messages to UART2.
+        uart_write_str(UART2, "Page successfully programmed\nAddress: ");
+        uart_write_hex(UART2, page_addr);
+        uart_write_str(UART2, "\nBytes: ");
+        uart_write_hex(UART2, data_index);
+        nl(UART2);
+
+        // Update to next page
+        page_addr += FLASH_PAGESIZE;
+        data_index = 0;
+
+         // If at end of firmware, go to main
+        if (frame_length == 0){
+            uart_write(UART1, OK);
+            break;
+        }
     }
+
+    error_counter = 0;
+    data_index = 0;
 
     // Release message packets
     for (int i = 0; i < r_size; i += 15){
@@ -429,6 +504,7 @@ void load_firmware(void){
     }
 
     /* Loop here until you can get all your characters and stuff */
+    //coment out below when testing? V
     while (1){
 
         // Get two bytes for the length.
