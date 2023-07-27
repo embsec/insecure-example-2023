@@ -333,6 +333,7 @@ void load_firmware(void){
         take data from array, check message type, put in flash
     */
     
+    
     //retrieve message type 0xf
     /*two loops
     one for firmware
