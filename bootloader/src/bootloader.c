@@ -310,6 +310,7 @@ void load_firmware(void){
         if (error == 1){
             // Reject metadata
             uart_write(UART1, ERROR);
+            uart_write_str(UART2, "Error sent\n");
         }
 
         // If there was an error, error_counter increases 1
