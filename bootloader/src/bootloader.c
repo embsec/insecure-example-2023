@@ -187,7 +187,7 @@ void load_initial_firmware(void){
  * --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  */
 int frame_decrypt(uint8_t *arr){
-    uart_write_str(UART2, "\nDecrypt started");
+    uart_write_str(UART2, "\nDecrypt started\n");
     // Misc vars for reading
     int read = 0;
     uint32_t rcv = 0;
@@ -219,7 +219,7 @@ int frame_decrypt(uint8_t *arr){
     // Note: KEY should be a macro in keys.h
     br_aes_ct_ctr_keys counter;
     br_gcm_context context;
-    br_aes_ct_ctr_init(&counter, KEY, 32);
+    br_aes_ct_ctr_init(&counter, KEY, 16);
     br_gcm_init(&context, &counter.vtable, br_ghash_ctmul32);
 
     // Add nonce and header
@@ -230,6 +230,22 @@ int frame_decrypt(uint8_t *arr){
 
     // Decrypt data
     br_gcm_run(&context, 0, data, 16);
+
+/*int gcm_decrypt_and_verify(char* key, char* iv, char* ct, int ct_len, char* aad, int aad_len, char* tag) {
+    br_aes_ct_ctr_keys bc;
+    br_gcm_context gc;
+    br_aes_ct_ctr_init(&bc, key, 16);
+    br_gcm_init(&gc, &bc.vtable, br_ghash_ctmul32);
+
+    br_gcm_reset(&gc, iv, 16);         
+    br_gcm_aad_inject(&gc, aad, aad_len);    
+    br_gcm_flip(&gc);                        
+    br_gcm_run(&gc, 0, ct, ct_len);   
+    if (br_gcm_check_tag(&gc, tag)) {
+        return 1;
+    }
+    return 0; 
+}*/
 
     // Add data to arr, then return if everything's ok
     for (int i = 0; i < 16; i += 1) {
