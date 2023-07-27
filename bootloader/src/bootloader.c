@@ -3,9 +3,6 @@
 
 /*
 TODO: 
-- Eleanor : 
--connect key for decrypting 
-
 - Reina:
 - process/decrypt the data  - in progress
 - check message type for data packets (in frame decrypt) - unfinished
@@ -51,10 +48,10 @@ long program_flash(uint32_t, unsigned char *, unsigned int);
 #define FLASH_WRITESIZE 4
 
 // Protocol Constants
-// Note: first byte is message type
-#define OK ((unsigned char)0x40)
-#define ERROR ((unsigned char)0x41)
-#define END ((unsigned char)0x42)
+// Note: first byte is message type, second is error type
+#define OK ((unsigned char)0x0400)
+#define ERROR ((unsigned char)0x0401)
+#define END ((unsigned char)0x0402)
 #define UPDATE ((unsigned char)'U')
 #define BOOT ((unsigned char)'B')
 
@@ -363,14 +360,14 @@ void load_firmware(void){
             error_counter += error;
 
             // Error timeout
-            if(error_counter > 5){
+            if(error_counter > 10){
                 uart_write_str(UART2, "Too much error. Restarting...");
                 uart_write(UART1, END);
                 SysCtlReset();
                 return;
             }
 
-            //saving data
+            // Write data to flash
             if(error == 0){
                 //store i into UART and write to flash
                 uart_write_str(UART2, "Successfully sent data\ndata: ");
