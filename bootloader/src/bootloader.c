@@ -25,7 +25,6 @@ delete while loop that used to check flash error: line 485
 // Library Imports
 #include <string.h>
 #include <bearssl_aead.h>   // Takes less than bearssl.h
-#include <beaverssl.h>
 
 // Application Imports
 #include "uart.h"
