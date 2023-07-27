@@ -251,7 +251,6 @@ void load_firmware(void){
 
     uint32_t data_index = 0;
     uint32_t page_addr = FW_BASE;
-    uint8_t msg_type = 5;
 
     // 1st frame data
     uint16_t message_type = 0;
@@ -346,7 +345,7 @@ void load_firmware(void){
     */
 
     // firmware data 0xf
-    for (int i = 0; i < f_size; i += 16){
+    for (int i = 0; i < f_size; i += 15){
         do {
             error = frame_decrypt(data_arr);
 
@@ -382,9 +381,16 @@ void load_firmware(void){
         }
 
         // Actually writes to flash
-        program_flash(message_type_and_raw_data, message, 15);
-        uart_write(UART1, OK);
-        return 0;
+        // Checks if last, and is padded
+        if (f_size - i < 15) {
+            program_flash(page_addr, message, f_size - i);
+            uart_write(UART1, OK);
+            return 0;
+        } else {
+            program_flash(page_addr, message, 15);
+            uart_write(UART1, OK);
+            return 0;
+        }
 
         error_counter = 0;
     }
