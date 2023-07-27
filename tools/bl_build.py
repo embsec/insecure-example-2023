@@ -17,6 +17,9 @@ import shutil
 import subprocess
 from Crypto.Hash import SHA256
 from Crypto.Cipher import AES
+from binascii import unhexlify
+from util import print_hex
+from  pwn import *
 
 REPO_ROOT = pathlib.Path(__file__).parent.parent.absolute()
 BOOTLOADER_DIR = os.path.join(REPO_ROOT, "bootloader")
@@ -74,7 +77,15 @@ with open("secret_build_output.txt", "wb") as file:
     file.write(aes_key + b"\n")
     file.write(header)
 
-# reads the txt file in byte format and prints out the first line (aes key) in the terminal 
-with open ("../bootloader/secret_build_output.txt", "rb") as file:
-    print(file.readline())
+
+# converts binary string to c array so that we can take it in as input, def not warren's stolen code, I'd never do that (not)
+def arrayize(binary_string):
+    return '{' + ', '.join([hex(char) for char in binary_string]) + '}'
+
+
+with open("keys.h", "w") as file:#Writes header file
+    file.write('#ifndef KEYS_H' + "\n")
+    file.write('#define KEY (const uint8_t[]) ' + arrayize(aes_key) + "\n")
+    file.write('#define HEADER (const uint8_t[]) ' + arrayize(header) + "\n")
+    file.write('#endif')
 
