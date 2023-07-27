@@ -250,21 +250,12 @@ int frame_decrypt(uint8_t *arr){
  * --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  */
 void load_firmware(void){
-    int frame_length = 0;
-    int read = 0;
-    uint32_t rcv = 0; // This and read should be not here soon
-
-    // stores ONE packet of data at a time, and is overwritten every time the a loop runs
-    uint8_t data_arr[16];
-    //stores return from frame_decrypt (error or no error)
-    int error;
-    //stores amount of errors returned so far
+    uint8_t data_arr[16];   // Stores 1 packet, and is overwritten every decrypt
+    int error;              // stores frame_decrypt return
     int error_counter = 0;
 
-    // length of current data chunk (in loop)  being written to flash
-    uint32_t data_index = 0;
-    //address to write to in flash
-    uint32_t page_addr = FW_BASE;
+    uint32_t data_index;            // Length of current data chunk written to flash
+    uint32_t page_addr = FW_BASE;   // Address to write to in flash
 
     // variables to store data from START frame
     uint16_t version;
@@ -425,16 +416,12 @@ void load_firmware(void){
         // Update to next page
         page_addr += 15;
 
-         // If at end of firmware, go to main
-        if (frame_length == 0){
-            uart_write(UART1, OK);
-            break;
-        }
+        uart_write_str(UART2, "Packet written.");
+        uart_write(UART1, OK);
     }
 
-    //reset counter and index for message frames to use
+    //reset counter
     error_counter = 0;
-    data_index = 0;
 
     // read and process and flash RELEASE MESSAGE frames
     //**********************************************************************************************************************
@@ -518,11 +505,8 @@ void load_firmware(void){
         // Update to next page
         page_addr += 15;
 
-         // If at end of firmware, go to main
-        if (frame_length == 0){
-            uart_write(UART1, OK);
-            break;
-        }
+        uart_write_str(UART2, "Packet written.");
+        uart_write(UART1, OK);
     }
 
     // read and process and flash END FRAME
