@@ -186,6 +186,7 @@ void load_initial_firmware(void){
  * --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  */
 int frame_decrypt(uint8_t *arr){
+    uart_write_str(UART2, "Decrypt started");
     // Misc vars for reading
     int read = 0;
     uint32_t rcv = 0;
@@ -210,6 +211,8 @@ int frame_decrypt(uint8_t *arr){
         rcv = uart_read(UART1, BLOCKING, &read);
         nonce[i] = rcv;
     }
+
+    uart_write_str(UART2, "Packet read");
 
     // Initialize GCM, with counter and GHASH
     // Note: KEY should be a macro in keys.h
@@ -239,6 +242,7 @@ int frame_decrypt(uint8_t *arr){
     } else {
         return 1;
     }
+    uart_write_str(UART2, "Decrypt done");
 }
 
 /*
