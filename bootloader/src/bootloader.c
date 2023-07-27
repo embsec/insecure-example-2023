@@ -46,9 +46,10 @@ long program_flash(uint32_t, unsigned char *, unsigned int);
 
 // Protocol Constants
 // Note: first byte is message type, second is error type
-#define OK ((unsigned char)0x0400)
-#define ERROR ((unsigned char)0x0401)
-#define END ((unsigned char)0x0402)
+#define OK ((unsigned char)0x00)
+#define ERROR ((unsigned char)0x01)
+#define END ((unsigned char)0x02)
+#define TYPE ((unsigned char)0x04)
 #define UPDATE ((unsigned char)'U')
 #define BOOT ((unsigned char)'B')
 
@@ -186,7 +187,7 @@ void load_initial_firmware(void){
  * --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  */
 int frame_decrypt(uint8_t *arr){
-    uart_write_str(UART2, "\nDecrypt started");
+    uart_write_str(UART2, "\nDecrypt started\n");
     // Misc vars for reading
     int read = 0;
     uint32_t rcv = 0;
@@ -230,10 +231,28 @@ int frame_decrypt(uint8_t *arr){
     // Decrypt data
     br_gcm_run(&context, 0, data, 16);
 
+/*int gcm_decrypt_and_verify(char* key, char* iv, char* ct, int ct_len, char* aad, int aad_len, char* tag) {
+    br_aes_ct_ctr_keys bc;
+    br_gcm_context gc;
+    br_aes_ct_ctr_init(&bc, key, 16);
+    br_gcm_init(&gc, &bc.vtable, br_ghash_ctmul32);
+
+    br_gcm_reset(&gc, iv, 16);         
+    br_gcm_aad_inject(&gc, aad, aad_len);    
+    br_gcm_flip(&gc);                        
+    br_gcm_run(&gc, 0, ct, ct_len);   
+    if (br_gcm_check_tag(&gc, tag)) {
+        return 1;
+    }
+    return 0; 
+}*/
+
     // Add data to arr, then return if everything's ok
     for (int i = 0; i < 16; i += 1) {
         arr[i] = data[i];
     }
+
+    uart_write_str(UART2, "Decrypt done\n");
 
     // Check tag
     if (br_gcm_check_tag(&context, tag)) {
@@ -241,7 +260,6 @@ int frame_decrypt(uint8_t *arr){
     } else {
         return 1;
     }
-    uart_write_str(UART2, "Decrypt done\n");
 }
 
 /*
@@ -309,7 +327,9 @@ void load_firmware(void){
 
         if (error == 1){
             // Reject metadata
+            uart_write(UART1, TYPE);
             uart_write(UART1, ERROR);
+            uart_write_str(UART2, "Error sent\n");
         }
 
         // If there was an error, error_counter increases 1
@@ -317,6 +337,7 @@ void load_firmware(void){
         error_counter += error;
         if (error_counter > 10) {
             uart_write_str(UART2, "Too many bad frames");
+            uart_write(UART1, TYPE);
             uart_write(UART1, END);
             SysCtlReset();
             return;
@@ -334,6 +355,7 @@ void load_firmware(void){
 
     // Acknowledge the metadata.
     uart_write(UART2, "Metadata written to flash");
+    uart_write(UART1, TYPE);
     uart_write(UART1, OK);
 
     // read and process and flash DATA frames
@@ -345,9 +367,11 @@ void load_firmware(void){
             // Error handling
             if (error == 1){
                 uart_write_str(UART2, "error decrypting data array");
+                uart_write(UART1, TYPE);
                 uart_write(UART1, ERROR);
             }else if (data_arr[0] != 3){
                 uart_write_str(UART2, "Incorrect Message Type");
+                uart_write(UART1, TYPE);
                 uart_write(UART1, ERROR);
                 error = 1;
             }
@@ -357,6 +381,7 @@ void load_firmware(void){
             // Error timeout if too many errors
             if(error_counter > 10){
                 uart_write_str(UART2, "Too much error. Restarting...");
+                uart_write(UART1, TYPE);
                 uart_write(UART1, END);
                 SysCtlReset();
                 return;
@@ -386,10 +411,12 @@ void load_firmware(void){
         do {
             if(program_flash(page_addr, message, data_index)){
                 uart_write(UART2, "Error while writing");
+                uart_write(UART1, TYPE);
                 uart_write(UART1, ERROR);
                 error = 1;
             } else if (memcmp(message, (void *) page_addr, data_index) != 0){
                 uart_write(UART2, "Error while writing");
+                uart_write(UART1, TYPE);
                 uart_write(UART1, ERROR);
                 error = 1;
             }
@@ -399,6 +426,7 @@ void load_firmware(void){
             // Error timeout
             if(error_counter > 10){
                 uart_write_str(UART2, "Too much error. Restarting...");
+                uart_write(UART1, TYPE);
                 uart_write(UART1, END);
                 SysCtlReset();
                 return;
@@ -419,6 +447,7 @@ void load_firmware(void){
         page_addr += 15;
 
         uart_write_str(UART2, "Packet written.");
+        uart_write(UART1, TYPE);
         uart_write(UART1, OK);
     }
 
@@ -435,9 +464,11 @@ void load_firmware(void){
             // check for wrong hash ot message type, error accordingly
             if (error == 1){
                 uart_write_str(UART2, "Incorrect GHASH");
+                uart_write(UART1, TYPE);
                 uart_write(UART1, ERROR);
             } else if (data_arr[0] != 2){
                 uart_write_str(UART2, "Incorrect Message Type");
+                uart_write(UART1, TYPE);
                 uart_write(UART1, ERROR);
                 error = 1;
             }
@@ -446,6 +477,7 @@ void load_firmware(void){
             error_counter += error;
             if (error_counter > 10) {
                 uart_write_str(UART2, "Too many bad frames");
+                uart_write(UART1, TYPE);
                 uart_write(UART1, END);
                 SysCtlReset();
                 return;
@@ -475,10 +507,12 @@ void load_firmware(void){
         do {
             if(program_flash(page_addr, message, data_index)){
                 uart_write(UART2, "Error while writing");
+                uart_write(UART1, TYPE);
                 uart_write(UART1, ERROR);
                 error = 1;
             } else if (memcmp(message, (void *) page_addr, data_index) != 0){
                 uart_write(UART2, "Error while writing");
+                uart_write(UART1, TYPE);
                 uart_write(UART1, ERROR);
                 error = 1;
             }
@@ -488,6 +522,7 @@ void load_firmware(void){
             // Error timeout
             if(error_counter > 10){
                 uart_write_str(UART2, "Too much error. Restarting...");
+                uart_write(UART1, TYPE);
                 uart_write(UART1, END);
                 SysCtlReset();
                 return;
@@ -508,6 +543,7 @@ void load_firmware(void){
         page_addr += 15;
 
         uart_write_str(UART2, "Packet written.");
+        uart_write(UART1, TYPE);
         uart_write(UART1, OK);
     }
 
@@ -520,9 +556,11 @@ void load_firmware(void){
         // check for wrong hash ot message type, error accordingly
         if (error == 1){
             uart_write_str(UART2, "Incorrect GHASH");
+            uart_write(UART1, TYPE);
             uart_write(UART1, ERROR);
         } else if (data_arr[0] != 3){
             uart_write_str(UART2, "Incorrect Message Type");
+            uart_write(UART1, TYPE);
             uart_write(UART1, ERROR);
             error = 1;
         }
@@ -531,6 +569,7 @@ void load_firmware(void){
         error_counter += error;
         if (error_counter > 10) {
             uart_write_str(UART2, "Too many bad frames");
+            uart_write(UART1, TYPE);
             uart_write(UART1, END);
             SysCtlReset();
             return;
@@ -539,6 +578,7 @@ void load_firmware(void){
     } while (error != 0);
     // end debug message
     uart_write_str(UART2, "All frames processed");
+    uart_write(UART1, TYPE);
     uart_write(UART1, OK); // acknowledge the frame.
 }
 
