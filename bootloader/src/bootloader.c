@@ -186,7 +186,7 @@ void load_initial_firmware(void){
  * --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  */
 int frame_decrypt(uint8_t *arr){
-    uart_write_str(UART2, "Decrypt started");
+    uart_write_str(UART2, "\nDecrypt started");
     // Misc vars for reading
     int read = 0;
     uint32_t rcv = 0;
@@ -212,7 +212,7 @@ int frame_decrypt(uint8_t *arr){
         nonce[i] = rcv;
     }
 
-    uart_write_str(UART2, "Packet read");
+    uart_write_str(UART2, "Packet recieved\n");
 
     // Initialize GCM, with counter and GHASH
     // Note: KEY should be a macro in keys.h
@@ -241,7 +241,7 @@ int frame_decrypt(uint8_t *arr){
     } else {
         return 1;
     }
-    uart_write_str(UART2, "Decrypt done");
+    uart_write_str(UART2, "Decrypt done\n");
 }
 
 /*
@@ -250,7 +250,7 @@ int frame_decrypt(uint8_t *arr){
  * --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  */
 void load_firmware(void){
-    uart_write_str(UART2, "Load started");
+    uart_write_str(UART2, "Load started\n");
 
     uint8_t data_arr[16];   // Stores 1 packet, and is overwritten every decrypt
     int error;              // stores frame_decrypt return
@@ -297,19 +297,19 @@ void load_firmware(void){
 
         // Check for errors
         if (error == 1){
-            uart_write_str(UART2, "Incorrect GHASH");
-            // Reject the metadata.
-            uart_write(UART1, ERROR);
+            uart_write_str(UART2, "Incorrect GHASH\n");
         } else if (data_arr[0] != 1){
-            uart_write_str(UART2, "Incorrect Message Type");
-            // Reject the metadata.
-            uart_write(UART1, ERROR);
+            uart_write_str(UART2, "Incorrect Message Type\n");
             error = 1;
         // If version less than old version, reject and reset
         } else if (version <= old_version){
-            uart_write_str(UART2, "Incorrect Version");
-            uart_write(UART1, ERROR);
+            uart_write_str(UART2, "Incorrect Version\n");
             error = 1;
+        }
+
+        if (error == 1){
+            // Reject metadata
+            uart_write(UART1, ERROR);
         }
 
         // If there was an error, error_counter increases 1
