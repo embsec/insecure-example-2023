@@ -373,68 +373,29 @@ void load_firmware(void){
 
         // Get only the data
         uint8_t message[15];
-        for (int j = 0; j < 15, j++) {
+        for (int j = 0; j < 15; j++) {
             message[i] = data_arr[i+1];
         }
 
         // Actually writes to flash
         // Checks if last, and is padded
-        do { 
-            if(f_size - i < 15) {
-                program_flash(page_addr, message, f_size - i);
-                uart_write(UART1, OK);
-                return 0;
+        if (f_size - i < 15) {
+            data_index = f_size - i;
+        } else {
+            data_index = 15;
+        }
+
+        do {
+            if(program_flash(page_addr, message, data_index)){
+                uart_write(UART1, ERROR); // Reject the firmware
+                SysCtlReset();            // Reset device
+                error = 1;
+            } else if (memcmp(message, (void *) page_addr, data_index) != 0){
+                uart_write(UART1, ERROR); // Reject the firmware
+                SysCtlReset();            // Reset device
+                error = 1;
             } else {
-                program_flash(page_addr, message, 15);
                 uart_write(UART1, OK);
-                return 0;
-            } 
-        } while(error != 0);
-        
-        error_counter = 0;
-
-        do{
-            // Get two bytes for the length.
-            rcv = uart_read(UART1, BLOCKING, &read);
-            frame_length = (int)rcv << 8;
-            rcv = uart_read(UART1, BLOCKING, &read);
-            frame_length += (int)rcv;
-
-            // Get the number of bytes specified
-            for (int i = 0; i < frame_length; ++i){
-                data[data_index] = uart_read(UART1, BLOCKING, &read);
-                data_index += 1;
-            }
-
-            // If we filed our page buffer, program it
-            if (data_index == FLASH_PAGESIZE || frame_length == 0){
-
-            if(frame_length == 0){
-                uart_write_str(UART2, "Got zero length frame.\n");
-                error = 1;
-            }
-            
-            // Try to write flash and check for error
-            if (program_flash(page_addr, message, data_index)){
-                uart_write(UART1, ERROR); // Reject the firmware
-                SysCtlReset();            // Reset device
-                error = 1;
-            }
-
-            error = (message);
-            // Try to write flash and check for error
-            if (program_flash(page_addr, message, data_index)){
-                uart_write(UART1, ERROR); // Reject the firmware
-                SysCtlReset();            // Reset device
-                error = 1;
-            }
-
-            // Verify flash program
-            if (memcmp(message, (void *) page_addr, data_index) != 0){
-                uart_write_str(UART2, "Flash check failed.\n");
-                uart_write(UART1, ERROR); // Reject the firmware
-                SysCtlReset();            // Reset device
-                error = 1;
             }
 
             error_counter += error;
@@ -446,7 +407,10 @@ void load_firmware(void){
                 SysCtlReset();
                 return;
             }
-        }while (error != 0)
+            
+        } while(error != 0);
+        
+        error_counter = 0;
 
         // Write debugging messages to UART2.
         uart_write_str(UART2, "Page successfully programmed\nAddress: ");
