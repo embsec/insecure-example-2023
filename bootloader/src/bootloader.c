@@ -236,13 +236,14 @@ int frame_decrypt(uint8_t *arr){
         arr[i] = data[i];
     }
 
+    uart_write_str(UART2, "Decrypt done\n");
+
     // Check tag
     if (br_gcm_check_tag(&context, tag)) {
         return 0;
     } else {
         return 1;
     }
-    uart_write_str(UART2, "Decrypt done\n");
 }
 
 /*
