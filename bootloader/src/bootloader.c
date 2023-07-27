@@ -478,6 +478,7 @@ void load_firmware(void){
         error_counter = 0;
 
         // insert write to flash below
+        
     }
 
     
