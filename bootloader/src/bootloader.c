@@ -390,25 +390,24 @@ void load_firmware(void){
             message[i] = data_arr[i+1];
         }
 
-        // FLASHING
+        // Whrites to flash
         // Checks if last frame is padded, and if so, change the size argument accordingly for writing to flash
         if (f_size - i < 15) {
             data_index = f_size - i;
         } else {
             data_index = 15;
         }
-        //actually FLASH, checking for error
+
+        // Check for errors while writing to flash
         do {
             if(program_flash(page_addr, message, data_index)){
-                uart_write(UART1, ERROR); // Reject the firmware
-                SysCtlReset();            // Reset device
+                uart_write(UART2, "Error while writing");
+                uart_write(UART1, ERROR);
                 error = 1;
             } else if (memcmp(message, (void *) page_addr, data_index) != 0){
-                uart_write(UART1, ERROR); // Reject the firmware
-                SysCtlReset();            // Reset device
+                uart_write(UART2, "Error while writing");
+                uart_write(UART1, ERROR);
                 error = 1;
-            } else {
-                uart_write(UART1, OK);
             }
 
             error_counter += error;
@@ -433,8 +432,7 @@ void load_firmware(void){
         nl(UART2);
 
         // Update to next page
-        page_addr += FLASH_PAGESIZE;
-        data_index = 0;
+        page_addr += 15;
 
          // If at end of firmware, go to main
         if (frame_length == 0){
