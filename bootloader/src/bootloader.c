@@ -218,7 +218,7 @@ int frame_decrypt(uint8_t *arr){
     // Note: KEY should be a macro in keys.h
     br_aes_ct_ctr_keys counter;
     br_gcm_context context;
-    br_aes_ct_ctr_init(&counter, KEY, 16);
+    br_aes_ct_ctr_init(&counter, KEY, 32);
     br_gcm_init(&context, &counter.vtable, br_ghash_ctmul32);
 
     // Add nonce and header
