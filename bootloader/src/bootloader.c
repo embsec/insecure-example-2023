@@ -350,19 +350,26 @@ void load_firmware(void){
     for (int i = 0; i < f_size; i += 16){
         do {
             error = frame_decrypt(data_arr);
+
+            // Error handling
             if (error == 1){
                 uart_write_str(UART2, "error decrypting data array");
+                uart_write(UART1, ERROR);
             }else if (data_arr[0] != 3){
-                uart_write_str(UART2, "incorrect data type");
-
+                uart_write_str(UART2, "Incorrect Message Type");
+                uart_write(UART1, ERROR);
+                error = 1;
             }
-
             error_counter += error;
+
+            // Error timeout
             if(error_counter > 5){
                 uart_write_str(UART2, "Too much error. Restarting...");
                 uart_write(UART1, END);
                 SysCtlReset();
-
+                return;
+            }
+            
             //saving data
             if(error == 0){
                 //store i into UART and write to flash
