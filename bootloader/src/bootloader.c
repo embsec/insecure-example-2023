@@ -339,19 +339,6 @@ void load_firmware(void){
     uart_write(UART2, "Metadata written to flash");
     uart_write(UART1, OK);
 
-
-    
-    //retrieve message type 0xf
-    /*two loops
-    one for firmware
-    -   loop until it reads the data frames (done)
-    -   while loop has frame length amount of frames for the firmware (done)
-    -   succcessful packet = deincrements firm thing breaks (done)
-    one for release message
-    -   to be done soon
-    delete this portion after success
-    */
-
     // read and process and flash DATA frames
     //**********************************************************************************************************************
     for (int i = 0; i < f_size; i += 15){
@@ -485,8 +472,8 @@ void load_firmware(void){
 
         // Whrites to flash
         // Checks if last frame is padded, and if so, change the size argument accordingly for writing to flash
-        if (f_size - i < 15) {
-            data_index = f_size - i;
+        if (r_size - i < 15) {
+            data_index = r_size - i;
         } else {
             data_index = 15;
         }
