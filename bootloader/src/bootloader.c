@@ -25,6 +25,7 @@ delete while loop that used to check flash error: line 485
 // Library Imports
 #include <string.h>
 #include <bearssl_aead.h>   // Takes less than bearssl.h
+#include <beaverssl.h>
 
 // Application Imports
 #include "uart.h"
@@ -213,14 +214,15 @@ int frame_decrypt(uint8_t *arr){
 
     // Initialize GCM, with counter and GHASH
     // Note: KEY should be a macro in keys.h
-    br_block_ctr_class counter = { &counter, KEY, 16};
+    br_aes_ct_ctr_keys counter;
     br_ghash ghash;
     br_gcm_context context;
-    br_gcm_init(&context, &counter, ghash);
-    br_gcm_reset(&context, nonce, 16);
+    br_aes_ct_ctr_init(&counter, KEY, 16);
+    br_gcm_init(&context, &counter.vtable, ghash);
 
-    // Add header data
+    // Add nonce and header
     // Note: HEADER is also a macro in keys.h
+    br_gcm_reset(&context, nonce, 16);
     br_gcm_aad_inject(&context, HEADER, 16);
     br_gcm_flip(&context);
 
