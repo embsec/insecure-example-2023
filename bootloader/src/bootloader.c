@@ -375,9 +375,9 @@ void load_firmware(void){
                 uint32_t raw_data = data_arr[i] & 0x7FFF; // the rest (aka 15 bits) are the raw_data
 
                 //it's split and now it's intended to be stored separately for eternity?
-                uint_t message_type_and_raw_data[2];
-                message_type_and_raw_data[0];
-                message_type_and_raw_data[1];
+                uint32_t message_type_and_raw_data[2];
+                message_type_and_raw_data[0] = message_type;
+                message_type_and_raw_data[1] = raw_data;
 
                 //uint32_t data_arr = ((f_size & 0xFFFF) << 16) | (version & 0xFFFF); << I commented it out just incase we arent supposed to split em separately for eternity
                 program_flash(message_type_and_raw_data, (uint8_t*)(&message_type_and_raw_data), 4);
@@ -387,7 +387,8 @@ void load_firmware(void){
             }
 
         } while (error != 0);
-
+        
+        error_counter = 0;
     }
 
     // Release message packets
