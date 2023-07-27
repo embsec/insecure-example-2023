@@ -68,7 +68,7 @@ def generate(number):
     return key
 
 #generate the aes key 
-aes_key = generate(32)
+aes_key = generate(16)
 #generate a random 16 byte string of characters 
 header = generate(16)
 
