@@ -382,16 +382,18 @@ void load_firmware(void){
 
         // Actually writes to flash
         // Checks if last, and is padded
-        if (f_size - i < 15) {
-            program_flash(page_addr, message, f_size - i);
-            uart_write(UART1, OK);
-            return 0;
-        } else {
-            program_flash(page_addr, message, 15);
-            uart_write(UART1, OK);
-            return 0;
-        }
-
+        do { 
+            if(f_size - i < 15) {
+                program_flash(page_addr, message, f_size - i);
+                uart_write(UART1, OK);
+                return 0;
+            } else {
+                program_flash(page_addr, message, 15);
+                uart_write(UART1, OK);
+                return 0;
+            } 
+        } while(error != 0);
+        
         error_counter = 0;
     }
 
