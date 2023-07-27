@@ -466,6 +466,8 @@ void load_firmware(void){
         // Remember: data being written is data_arr[1] --> data_arr[15]
     }
 
+    
+
     /* Loop here until you can get all your characters and stuff */
     //coment out below when testing? V
     while (1){
