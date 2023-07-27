@@ -1,6 +1,16 @@
 // Copyright 2023 The MITRE Corporation. ALL RIGHTS RESERVED
 // Approved for public release. Distribution unlimited 23-02181-13.
 
+/*
+Bootloader for Stellaris
+recieves and processes frames from firmware update and stores them to flash 
+
+TODO: 
+write message frames to flash: line 479
+delete while loop that used to check flash error: line 485
+
+*/
+
 // Hardware Imports
 #include "inc/hw_memmap.h" // Peripheral Base Addresses
 #include "inc/lm3s6965.h"  // Peripheral Bit Masks and Registers
@@ -14,10 +24,11 @@
 
 // Library Imports
 #include <string.h>
-#include <bearssl.h>
+#include <bearssl_aead.h>   // Takes less than bearssl.h
 
 // Application Imports
 #include "uart.h"
+#include "../keys.h"
 
 // Forward Declarations
 void load_initial_firmware(void);
@@ -34,9 +45,10 @@ long program_flash(uint32_t, unsigned char *, unsigned int);
 #define FLASH_WRITESIZE 4
 
 // Protocol Constants
-#define OK ((unsigned char)0x00)
-#define ERROR ((unsigned char)0x01)
-#define END ((unsigned char)0x02)
+// Note: first byte is message type, second is error type
+#define OK ((unsigned char)0x0400)
+#define ERROR ((unsigned char)0x0401)
+#define END ((unsigned char)0x0402)
 #define UPDATE ((unsigned char)'U')
 #define BOOT ((unsigned char)'B')
 
@@ -54,6 +66,11 @@ void uart_write_hex_bytes(uint8_t uart, uint8_t * start, uint32_t len);
 // Firmware Buffer
 unsigned char data[FLASH_PAGESIZE];
 
+/*
+ * 1. intilializes UARTS
+ * 2. calls functions to load firmware
+ * --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+*/
 int main(void){
 
     // A 'reset' on UART0 will re-start this code at the top of main, won't clear flash, but will clean ram.
@@ -92,7 +109,8 @@ int main(void){
 }
 
 /*
- * Load initial firmware into flash (V2)
+ * Load initial firmware into flash V2
+ *  --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  */
 void load_initial_firmware(void){
 
@@ -160,117 +178,378 @@ void load_initial_firmware(void){
 }
 
 /*
- * Load the firmware into flash.
- * This is where I stick all the code
+ * ABSTRACTED function for receiving data frames when needed
+ * Reads and decrypts a packet
+ * Takes a uint8_t array with 16+ items. Deciphered data is written to the array
+ * Returns an int, which is 0 if the GHASH matches and 1 if it does not
+ * GCM Reference: https://bearssl.org/apidoc/structbr__gcm__context.html
+ * --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ */
+int frame_decrypt(uint8_t *arr){
+    // Misc vars for reading
+    int read = 0;
+    uint32_t rcv = 0;
+
+    // Init packet parts: each is 16 bytes
+    uint8_t data[16];
+    uint8_t tag[16];
+    uint8_t nonce[16];
+
+    // Read packet
+    for (int i = 0; i < 16; i += 1) {
+        // Note: uart_read only reads 1 byte @ a time
+        //Note: data includes message as first byte
+        rcv = uart_read(UART1, BLOCKING, &read);
+        data[i] = rcv;
+    }
+    for (int i = 0; i < 16; i += 1) {
+        rcv = uart_read(UART1, BLOCKING, &read);
+        tag[i] = rcv;
+    }
+    for (int i = 0; i < 16; i += 1) {
+        rcv = uart_read(UART1, BLOCKING, &read);
+        nonce[i] = rcv;
+    }
+
+    // Initialize GCM, with counter and GHASH
+    // Note: KEY should be a macro in keys.h
+    br_block_ctr_class counter = { &counter, KEY, 16};
+    br_ghash ghash;
+    br_gcm_context context;
+    br_gcm_init(&context, &counter, ghash);
+    br_gcm_reset(&context, nonce, 16);
+
+    // Add header data
+    // Note: HEADER is also a macro in keys.h
+    br_gcm_aad_inject(&context, HEADER, 16);
+    br_gcm_flip(&context);
+
+    // Decrypt data
+    br_gcm_run(&context, 0, data, 16);
+
+    // Add data to arr, then return if everything's ok
+    for (int i = 0; i < 16; i += 1) {
+        arr[i] = data[i];
+    }
+
+    // Check tag
+    if (br_gcm_check_tag(&context, tag)) {
+        return 0;
+    } else {
+        return 1;
+    }
+}
+
+/*
+ * 1. recieves and decrypts all frames using frame_decrypt
+ * 2. writes start frame version and firmware size, data, and message to flash
+ * --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  */
 void load_firmware(void){
     int frame_length = 0;
     int read = 0;
-    uint32_t rcv = 0;
+    uint32_t rcv = 0; // This and read should be not here soon
 
+    // stores ONE packet of data at a time, and is overwritten every time the a loop runs
+    uint8_t data_arr[16];
+    //stores return from frame_decrypt (error or no error)
+    int error;
+    //stores amount of errors returned so far
+    int error_counter = 0;
+
+    // length of current data chunk (in loop)  being written to flash
     uint32_t data_index = 0;
+    //address to write to in flash
     uint32_t page_addr = FW_BASE;
-    uint32_t version = 0;
-    uint32_t size = 0;
 
-    // Get version as 16 bytes 
-    rcv = uart_read(UART1, BLOCKING, &read);
-    version = (uint32_t)rcv;
-    rcv = uart_read(UART1, BLOCKING, &read);
-    version |= (uint32_t)rcv << 8;
+    // variables to store data from START frame
+    uint16_t version;
+    uint16_t f_size;
+    uint16_t r_size;
 
-    uart_write_str(UART2, "Received Firmware Version: ");
-    uart_write_hex(UART2, version);
-    nl(UART2);
+   // read and process and flash START frame ONLY
+   //**********************************************************************************************************************
+    do {
+        error = frame_decrypt(data_arr);
 
-    // Get size as 16 bytes 
-    rcv = uart_read(UART1, BLOCKING, &read);
-    size = (uint32_t)rcv;
-    rcv = uart_read(UART1, BLOCKING, &read);
-    size |= (uint32_t)rcv << 8;
+        // Get version (0x2)
+        version = (uint16_t)data_arr[1];
+        version |= (uint16_t)data_arr[2] << 8;
+        uart_write_str(UART2, "Received Firmware Version: ");
+        uart_write_hex(UART2, version);
+        nl(UART2);
+        // Get release message size in bytes (0x2)
+        r_size = (uint16_t)data_arr[5];
+        r_size |= (uint16_t)data_arr[6] << 8;
+        uart_write_str(UART2, "Received Release Message Size: ");
+        uart_write_hex(UART2, r_size);
+        nl(UART2);
+        // Get firmware size in bytes (0x2) 
+        f_size = (uint16_t)data_arr[3];
+        f_size |= (uint16_t)data_arr[4] << 8;
+        uart_write_str(UART2, "Received Firmware Size: ");
+        uart_write_hex(UART2, f_size);
+        nl(UART2);
 
-    uart_write_str(UART2, "Received Firmware Size: ");
-    uart_write_hex(UART2, size);
-    nl(UART2);
+        // Set up version compare
+        uint16_t old_version = *fw_version_address;
+        // If version 0 (debug), don't change version
+        if (version == 0){
+            version = old_version;
+        }
 
-    // Compare to old version and abort if older (note special case for version 0).
-    uint16_t old_version = *fw_version_address;
+        // Check for errors
+        if (error == 1){
+            uart_write_str(UART2, "Incorrect GHASH");
+            // Reject the metadata.
+            uart_write(UART1, ERROR);
+        } else if (data_arr[0] != 1){
+            uart_write_str(UART2, "Incorrect Message Type");
+            // Reject the metadata.
+            uart_write(UART1, ERROR);
+            error = 1;
+        // If version less than old version, reject and reset
+        } else if (version <= old_version){
+            uart_write_str(UART2, "Incorrect Version");
+            uart_write(UART1, ERROR);
+            error = 1;
+        }
 
-    if (version != 0 && version < old_version){
-        uart_write(UART1, ERROR); // Reject the metadata.
-        SysCtlReset();            // Reset device
-        return;
-    }
+        // If there was an error, error_counter increases 1
+        // If error counter is too high, end (by returning out of main)
+        error_counter += error;
+        if (error_counter > 10) {
+            uart_write_str(UART2, "Too many bad frames");
+            uart_write(UART1, END);
+            SysCtlReset();
+            return;
+        }
+    } while (error != 0);
+    // reading START frame FINISHED
 
-    if (version == 0){
-        // If debug firmware, don't change version
-        version = old_version;
-    }
+    // Resets counter, since start frame successful
+    error_counter = 0;
 
-    // Write new firmware size and version to Flash
-    // Create 32 bit word for flash programming, version is at lower address, size is at higher address
-    uint32_t metadata = ((size & 0xFFFF) << 16) | (version & 0xFFFF);
+    // FLASH data from start frame (firmware size and version) 
+    // Version is at lower address, size is at higher address
+    uint32_t metadata = ((f_size & 0xFFFF) << 16) | (version & 0xFFFF);
     program_flash(METADATA_BASE, (uint8_t *)(&metadata), 4);
 
-    uart_write(UART1, OK); // Acknowledge the metadata.
+    // Acknowledge the metadata.
+    uart_write(UART2, "Metadata written to flash");
+    uart_write(UART1, OK);
 
-    /* Loop here until you can get all your characters and stuff */
-    while (1){
+    // read and process and flash DATA frames
+    //**********************************************************************************************************************
+    for (int i = 0; i < f_size; i += 15){
+        do {
+            error = frame_decrypt(data_arr);
 
-        // Get two bytes for the length.
-        rcv = uart_read(UART1, BLOCKING, &read);
-        frame_length = (int)rcv << 8;
-        rcv = uart_read(UART1, BLOCKING, &read);
-        frame_length += (int)rcv;
+            // Error handling
+            if (error == 1){
+                uart_write_str(UART2, "error decrypting data array");
+                uart_write(UART1, ERROR);
+            }else if (data_arr[0] != 3){
+                uart_write_str(UART2, "Incorrect Message Type");
+                uart_write(UART1, ERROR);
+                error = 1;
+            }
+            //increase error counter if there was an error
+            error_counter += error;
 
-        // Get the number of bytes specified
-        for (int i = 0; i < frame_length; ++i){
-            data[data_index] = uart_read(UART1, BLOCKING, &read);
-            data_index += 1;
-        } // for
+            // Error timeout if too many errors
+            if(error_counter > 10){
+                uart_write_str(UART2, "Too much error. Restarting...");
+                uart_write(UART1, END);
+                SysCtlReset();
+                return;
+            }
 
-        // If we filed our page buffer, program it
-        if (data_index == FLASH_PAGESIZE || frame_length == 0){
+        } while (error != 0);
 
-            if(frame_length == 0){
-                uart_write_str(UART2, "Got zero length frame.\n");
+        // Write that full packet has been recieved
+        uart_write_str(UART2, "Successfully recieved data\ndata: ");
+        uart_write_hex(UART2, i);
+
+        // isolate only data from data_arr
+        uint8_t message[15];
+        for (int j = 0; j < 15; j++) {
+            message[i] = data_arr[i+1];
+        }
+
+        // Whrites to flash
+        // Checks if last frame is padded, and if so, change the size argument accordingly for writing to flash
+        if (f_size - i < 15) {
+            data_index = f_size - i;
+        } else {
+            data_index = 15;
+        }
+
+        // Check for errors while writing to flash
+        do {
+            if(program_flash(page_addr, message, data_index)){
+                uart_write(UART2, "Error while writing");
+                uart_write(UART1, ERROR);
+                error = 1;
+            } else if (memcmp(message, (void *) page_addr, data_index) != 0){
+                uart_write(UART2, "Error while writing");
+                uart_write(UART1, ERROR);
+                error = 1;
+            }
+
+            error_counter += error;
+    
+            // Error timeout
+            if(error_counter > 10){
+                uart_write_str(UART2, "Too much error. Restarting...");
+                uart_write(UART1, END);
+                SysCtlReset();
+                return;
             }
             
-            // Try to write flash and check for error
-            if (program_flash(page_addr, data, data_index)){
-                uart_write(UART1, ERROR); // Reject the firmware
-                SysCtlReset();            // Reset device
+        } while(error != 0);
+        
+        error_counter = 0;
+
+        // Write success and debugging messages to UART2.
+        uart_write_str(UART2, "Page successfully programmed\nAddress: ");
+        uart_write_hex(UART2, page_addr);
+        uart_write_str(UART2, "\nBytes: ");
+        uart_write_hex(UART2, data_index);
+        nl(UART2);
+
+        // Update to next page
+        page_addr += 15;
+
+         // If at end of firmware, go to main
+        if (frame_length == 0){
+            uart_write(UART1, OK);
+            break;
+        }
+    }
+
+    //reset counter and index for message frames to use
+    error_counter = 0;
+    data_index = 0;
+
+    // read and process and flash RELEASE MESSAGE frames
+    //**********************************************************************************************************************
+    for (int i = 0; i < r_size; i += 15){
+        // reads and checks for errors
+        do{
+            error = frame_decrypt(data_arr);
+
+            // check for wrong hash ot message type, error accordingly
+            if (error == 1){
+                uart_write_str(UART2, "Incorrect GHASH");
+                uart_write(UART1, ERROR);
+            } else if (data_arr[0] != 2){
+                uart_write_str(UART2, "Incorrect Message Type");
+                uart_write(UART1, ERROR);
+                error = 1;
+            }
+
+            // check if too many errors, error accordingly
+            error_counter += error;
+            if (error_counter > 10) {
+                uart_write_str(UART2, "Too many bad frames");
+                uart_write(UART1, END);
+                SysCtlReset();
                 return;
             }
+        } while (error != 0);
 
-            // Verify flash program
-            if (memcmp(data, (void *) page_addr, data_index) != 0){
-                uart_write_str(UART2, "Flash check failed.\n");
-                uart_write(UART1, ERROR); // Reject the firmware
-                SysCtlReset();            // Reset device
+        // insert write to flash below
+         // Write that full packet has been recieved
+        uart_write_str(UART2, "Successfully recieved data\ndata: ");
+        uart_write_hex(UART2, i);
+
+        // isolate only data from data_arr
+        uint8_t message[15];
+        for (int j = 0; j < 15; j++) {
+            message[i] = data_arr[i+1];
+        }
+
+        // Whrites to flash
+        // Checks if last frame is padded, and if so, change the size argument accordingly for writing to flash
+        if (r_size - i < 15) {
+            data_index = r_size - i;
+        } else {
+            data_index = 15;
+        }
+
+        // Check for errors while writing to flash
+        do {
+            if(program_flash(page_addr, message, data_index)){
+                uart_write(UART2, "Error while writing");
+                uart_write(UART1, ERROR);
+                error = 1;
+            } else if (memcmp(message, (void *) page_addr, data_index) != 0){
+                uart_write(UART2, "Error while writing");
+                uart_write(UART1, ERROR);
+                error = 1;
+            }
+
+            error_counter += error;
+    
+            // Error timeout
+            if(error_counter > 10){
+                uart_write_str(UART2, "Too much error. Restarting...");
+                uart_write(UART1, END);
+                SysCtlReset();
                 return;
             }
+            
+        } while(error != 0);
+        
+        error_counter = 0;
 
-            // Write debugging messages to UART2.
-            uart_write_str(UART2, "Page successfully programmed\nAddress: ");
-            uart_write_hex(UART2, page_addr);
-            uart_write_str(UART2, "\nBytes: ");
-            uart_write_hex(UART2, data_index);
-            nl(UART2);
+        // Write success and debugging messages to UART2.
+        uart_write_str(UART2, "Page successfully programmed\nAddress: ");
+        uart_write_hex(UART2, page_addr);
+        uart_write_str(UART2, "\nBytes: ");
+        uart_write_hex(UART2, data_index);
+        nl(UART2);
 
-            // Update to next page
-            page_addr += FLASH_PAGESIZE;
-            data_index = 0;
+        // Update to next page
+        page_addr += 15;
 
-            // If at end of firmware, go to main
-            if (frame_length == 0){
-                uart_write(UART1, OK);
-                break;
-            }
-        } // if
+         // If at end of firmware, go to main
+        if (frame_length == 0){
+            uart_write(UART1, OK);
+            break;
+        }
+    }
 
-        uart_write(UART1, OK); // Acknowledge the frame.
-    }                          // while(1)
+    // read and process and flash END FRAME
+    //**********************************************************************************************************************
+    do {
+        // read
+        error = frame_decrypt(data_arr);
+
+        // check for wrong hash ot message type, error accordingly
+        if (error == 1){
+            uart_write_str(UART2, "Incorrect GHASH");
+            uart_write(UART1, ERROR);
+        } else if (data_arr[0] != 3){
+            uart_write_str(UART2, "Incorrect Message Type");
+            uart_write(UART1, ERROR);
+            error = 1;
+        }
+
+        // Check if too many errors, error accordingly
+        error_counter += error;
+        if (error_counter > 10) {
+            uart_write_str(UART2, "Too many bad frames");
+            uart_write(UART1, END);
+            SysCtlReset();
+            return;
+        }
+
+    } while (error != 0);
+    // end debug message
+    uart_write_str(UART2, "All frames processed");
+    uart_write(UART1, OK); // acknowledge the frame.
 }
 
 /*
@@ -280,6 +559,7 @@ void load_firmware(void){
  *
  * This functions performs an erase of the specified flash page before writing
  * the data.
+ * --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  */
 long program_flash(uint32_t page_addr, unsigned char *data, unsigned int data_len){
     uint32_t word = 0;
@@ -320,6 +600,7 @@ long program_flash(uint32_t page_addr, unsigned char *data, unsigned int data_le
 }
 
 // Boots firmware (when response is 'B')
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void boot_firmware(void){
     // compute the release message address, and then print it
     uint16_t fw_size = *fw_size_address;
@@ -332,6 +613,7 @@ void boot_firmware(void){
         "BX R0\n\t");
 }
 
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void uart_write_hex_bytes(uint8_t uart, uint8_t * start, uint32_t len) {
     for (uint8_t * cursor = start; cursor < (start + len); cursor += 1) {
         uint8_t data = *((uint8_t *)cursor);
