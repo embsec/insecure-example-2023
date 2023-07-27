@@ -321,11 +321,13 @@ void load_firmware(void){
     error_counter = 0;
 
     // Write new firmware size and version to Flash
-    // Create 32 bit word for flash programming, version is at lower address, size is at higher address
+    // Version is at lower address, size is at higher address
     uint32_t metadata = ((f_size & 0xFFFF) << 16) | (version & 0xFFFF);
     program_flash(METADATA_BASE, (uint8_t *)(&metadata), 4);
 
-    uart_write(UART1, OK); // Acknowledge the metadata.
+    // Acknowledge the metadata.
+    uart_write(UART2, "Metadata written to flash");
+    uart_write(UART1, OK);
 
 
     /* Loop here until you can get all your characters and stuff (data frames) 
@@ -369,21 +371,18 @@ void load_firmware(void){
 
         } while (error != 0);
 
-        //store i into UART and write to flash
-        uart_write_str(UART2, "Successfully sent data\ndata: ");
-        uart_write_hex(UART2, error);
+        // Tell that full packet has been recieved
+        uart_write_str(UART2, "Successfully recieved data\ndata: ");
+        uart_write_hex(UART2, i);
 
-        //splitting message type and raw data
-        uint32_t message_type = (data_arr[i] & 0x8000) >> 15; // the 1 bit is message_type
-        uint32_t raw_data = data_arr[i] & 0x7FFF; // the rest (aka 15 bits) are the raw_data
+        // Get only the data
+        uint8_t message[15];
+        for (int j = 0; j < 15, j++) {
+            message[i] = data_arr[i+1];
+        }
 
-        //it's split and now it's intended to be stored separately for eternity?
-        uint32_t message_type_and_raw_data[2];
-        message_type_and_raw_data[0] = message_type;
-        message_type_and_raw_data[1] = raw_data;
-
-        //uint32_t data_arr = ((f_size & 0xFFFF) << 16) | (version & 0xFFFF); << I commented it out just incase we arent supposed to split em separately for eternity
-        program_flash(message_type_and_raw_data, (uint8_t*)(&message_type_and_raw_data), 4);
+        // Actually writes to flash
+        program_flash(message_type_and_raw_data, message, 15);
         uart_write(UART1, OK);
         return 0;
 
