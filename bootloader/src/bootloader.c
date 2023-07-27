@@ -476,6 +476,7 @@ void load_firmware(void){
         error_counter = 0;
 
         // insert write to flash below
+        
     }
 
     // read and process and flash END FRAME
