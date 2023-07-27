@@ -250,6 +250,8 @@ int frame_decrypt(uint8_t *arr){
  * --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  */
 void load_firmware(void){
+    uart_write_str(UART2, "Load started");
+
     uint8_t data_arr[16];   // Stores 1 packet, and is overwritten every decrypt
     int error;              // stores frame_decrypt return
     int error_counter = 0;
