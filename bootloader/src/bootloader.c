@@ -329,10 +329,6 @@ void load_firmware(void){
     uart_write(UART1, OK);
 
 
-    /* Loop here until you can get all your characters and stuff (data frames) 
-        take data from array, check message type, put in flash
-    */
-    
     
     //retrieve message type 0xf
     /*two loops
