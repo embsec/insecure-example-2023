@@ -377,7 +377,7 @@ void load_firmware(void){
 
         // Get only the data
         uint8_t message[15];
-        for (int j = 0; j < 15, j++) {
+        for (int j = 0; j < 15; j++) {
             message[i] = data_arr[i+1];
         }
 
@@ -450,7 +450,7 @@ void load_firmware(void){
                 SysCtlReset();
                 return;
             }
-        }while (error != 0)
+        }while (error != 0);
 
         // Write debugging messages to UART2.
         uart_write_str(UART2, "Page successfully programmed\nAddress: ");
