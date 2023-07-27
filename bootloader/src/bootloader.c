@@ -471,12 +471,67 @@ void load_firmware(void){
                 return;
             }
         } while (error != 0);
-        
-        // reset counter after success
-        error_counter = 0;
 
         // insert write to flash below
+         // Write that full packet has been recieved
+        uart_write_str(UART2, "Successfully recieved data\ndata: ");
+        uart_write_hex(UART2, i);
+
+        // isolate only data from data_arr
+        uint8_t message[15];
+        for (int j = 0; j < 15; j++) {
+            message[i] = data_arr[i+1];
+        }
+
+        // Whrites to flash
+        // Checks if last frame is padded, and if so, change the size argument accordingly for writing to flash
+        if (f_size - i < 15) {
+            data_index = f_size - i;
+        } else {
+            data_index = 15;
+        }
+
+        // Check for errors while writing to flash
+        do {
+            if(program_flash(page_addr, message, data_index)){
+                uart_write(UART2, "Error while writing");
+                uart_write(UART1, ERROR);
+                error = 1;
+            } else if (memcmp(message, (void *) page_addr, data_index) != 0){
+                uart_write(UART2, "Error while writing");
+                uart_write(UART1, ERROR);
+                error = 1;
+            }
+
+            error_counter += error;
+    
+            // Error timeout
+            if(error_counter > 10){
+                uart_write_str(UART2, "Too much error. Restarting...");
+                uart_write(UART1, END);
+                SysCtlReset();
+                return;
+            }
+            
+        } while(error != 0);
         
+        error_counter = 0;
+
+        // Write success and debugging messages to UART2.
+        uart_write_str(UART2, "Page successfully programmed\nAddress: ");
+        uart_write_hex(UART2, page_addr);
+        uart_write_str(UART2, "\nBytes: ");
+        uart_write_hex(UART2, data_index);
+        nl(UART2);
+
+        // Update to next page
+        page_addr += 15;
+
+         // If at end of firmware, go to main
+        if (frame_length == 0){
+            uart_write(UART1, OK);
+            break;
+        }
     }
 
     // read and process and flash END FRAME
