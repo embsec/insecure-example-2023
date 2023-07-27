@@ -369,7 +369,7 @@ void load_firmware(void){
                 SysCtlReset();
                 return;
             }
-            
+
             //saving data
             if(error == 0){
                 //store i into UART and write to flash
@@ -390,10 +390,7 @@ void load_firmware(void){
                 uart_write(UART1, OK);
                 return 0;
             }
-            }
-
         } while (error != 0);
-
     }
 
     // Release message packets
