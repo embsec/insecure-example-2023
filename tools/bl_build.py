@@ -80,14 +80,12 @@ with open("secret_build_output.txt", "wb") as file:
 
 # converts binary string to c array so that we can take it in as input, def not warren's stolen code, I'd never do that (not)
 def arrayize(binary_string):
-    return '{' + ', '.join([hex(char) for char in binary_string]) + '};'
+    return '{' + ', '.join([hex(char) for char in binary_string]) + '}'
 
 
 with open("keys.h", "w") as file:#Writes header file
     file.write('#ifndef KEYS_H' + "\n")
-    file.write('#define KEY' + "\n")
-    file.write('#define HEADER' + "\n")
-    file.write('const uint8_t KEY[32] = ' + arrayize(aes_key) + "\n")
-    file.write('const uint8_t HEADER[16] = ' + arrayize(header) + "\n")
+    file.write('#define KEY (const uint8_t[]) ' + arrayize(aes_key) + "\n")
+    file.write('#define HEADER (const uint8_t[]) ' + arrayize(header) + "\n")
     file.write('#endif')
 
