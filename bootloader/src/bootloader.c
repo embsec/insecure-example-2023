@@ -212,7 +212,7 @@ int frame_decrypt(uint8_t *arr){
 
     // Initialize GCM, with counter and GHASH
     // Note: KEY should be a macro in keys.h
-    br_block_ctr_class counter = { &counter, &KEY, 16};
+    br_block_ctr_class counter = { &counter, KEY, 16};
     br_ghash ghash;
     br_gcm_context context;
     br_gcm_init(&context, &counter, ghash);
@@ -220,7 +220,7 @@ int frame_decrypt(uint8_t *arr){
 
     // Add header data
     // Note: HEADER is also a macro in keys.h
-    br_gcm_aad_inject(&context, &HEADER, 16);
+    br_gcm_aad_inject(&context, HEADER, 16);
     br_gcm_flip(&context);
 
     // Decrypt data
