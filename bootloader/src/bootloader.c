@@ -320,7 +320,7 @@ void load_firmware(void){
             uart_write_str(UART2, "Incorrect Message Type\n");
             error = 1;
         // If version less than old version, reject and reset
-        } else if ((version <= old_version) && (version != 0)){
+        } else if ((version < old_version)){
             uart_write_str(UART2, "Incorrect Version\n");
             error = 1;
         }
