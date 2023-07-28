@@ -24,6 +24,14 @@ from  pwn import *
 REPO_ROOT = pathlib.Path(__file__).parent.parent.absolute()
 BOOTLOADER_DIR = os.path.join(REPO_ROOT, "bootloader")
 
+# function to generate random byte strings based on a certain number of bytes passed
+def generate(number):
+    key = os.urandom(number)
+    return key
+
+# converts binary string to c array so that we can take it in as input, def not warren's stolen code, I'd never do that (not)
+def arrayize(binary_string):
+    return '{' + ', '.join([hex(char) for char in binary_string]) + '}'
 
 def copy_initial_firmware(binary_path: str):
     # Copy the initial firmware binary to the bootloader build directory
@@ -45,6 +53,7 @@ def make_bootloader() -> bool:
 
 
 if __name__ == "__main__":
+
     parser = argparse.ArgumentParser(description="Bootloader Build Tool")
     parser.add_argument(
         "--initial-firmware",
@@ -59,33 +68,23 @@ if __name__ == "__main__":
             f'ERROR: {firmware_path} does not exist or is not a file. You may have to call "make" in the firmware directory.'
         )
 
+    #generate the aes key 
+    aes_key = generate(16)
+    #generate a random 16 byte string of characters 
+    header = generate(16)
+
+    # write the aes key and header to the secret file in byte format
+    with open("../bootloader/secret_build_output.txt", "wb") as file:
+        file.write(aes_key + b"\n")
+        file.write(header)
+        
+    with open("../bootloader/keys.h", "w") as file:#Writes header file
+        file.write('#ifndef KEYS_H' + "\n")
+        file.write('#define KEY (const uint8_t[]) ' + arrayize(aes_key) + "\n")
+        file.write('#define HEADER (const uint8_t[]) ' + arrayize(header) + "\n")
+        file.write('#endif')
+    
     copy_initial_firmware(firmware_path)
     make_bootloader()
 
-# function to generate random byte strings based on a certain number of bytes passed
-def generate(number):
-    key = os.urandom(number)
-    return key
-
-#generate the aes key 
-aes_key = generate(16)
-#generate a random 16 byte string of characters 
-header = generate(16)
-
-# write the aes key and header to the secret file in byte format
-with open("secret_build_output.txt", "wb") as file:
-    file.write(aes_key + b"\n")
-    file.write(header)
-
-
-# converts binary string to c array so that we can take it in as input, def not warren's stolen code, I'd never do that (not)
-def arrayize(binary_string):
-    return '{' + ', '.join([hex(char) for char in binary_string]) + '}'
-
-
-with open("keys.h", "w") as file:#Writes header file
-    file.write('#ifndef KEYS_H' + "\n")
-    file.write('#define KEY (const uint8_t[]) ' + arrayize(aes_key) + "\n")
-    file.write('#define HEADER (const uint8_t[]) ' + arrayize(header) + "\n")
-    file.write('#endif')
 

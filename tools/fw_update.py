@@ -81,6 +81,7 @@ def send_metadata(ser, metadata, debug=False):
     
     #write metadata (START frame)
     ser.write(metadata)
+    print(ser.read(2))
     
     if debug:
         print(metadata)
