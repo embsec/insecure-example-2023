@@ -74,6 +74,7 @@ def protect_firmware(infile, outfile, version, message, secret):
     beginFrame = encrypt(randPad(p8(1, endian = "big") + p16(version, endian = "big") + p16(len(firmware), endian = "big") + p16(len(message), endian = "big"), 16), key, header)
     #Generates end frame and encrypts it
     endFrame = encrypt(randPad(p8(3, endian = "big"), 16), key, header)
+    print(beginFrame)
     # Append firmware and message to metadata
     firmware_blob = beginFrame + encrypted + messageEncrypted + endFrame #Builds firmware blob
 
