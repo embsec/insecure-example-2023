@@ -354,7 +354,7 @@ void load_firmware(void){
     program_flash(METADATA_BASE, (uint8_t *)(&metadata), 4);
 
     // Acknowledge the metadata.
-    uart_write(UART2, "Metadata written to flash");
+    uart_write_str(UART2, "Metadata written to flash");
     uart_write(UART1, TYPE);
     uart_write(UART1, OK);
 
@@ -410,12 +410,12 @@ void load_firmware(void){
         // Check for errors while writing to flash
         do {
             if(program_flash(page_addr, message, data_index)){
-                uart_write(UART2, "Error while writing");
+                uart_write_str(UART2, "Error while writing");
                 uart_write(UART1, TYPE);
                 uart_write(UART1, ERROR);
                 error = 1;
             } else if (memcmp(message, (void *) page_addr, data_index) != 0){
-                uart_write(UART2, "Error while writing");
+                uart_write_str(UART2, "Error while writing");
                 uart_write(UART1, TYPE);
                 uart_write(UART1, ERROR);
                 error = 1;
@@ -506,12 +506,12 @@ void load_firmware(void){
         // Check for errors while writing to flash
         do {
             if(program_flash(page_addr, message, data_index)){
-                uart_write(UART2, "Error while writing");
+                uart_write_str(UART2, "Error while writing");
                 uart_write(UART1, TYPE);
                 uart_write(UART1, ERROR);
                 error = 1;
             } else if (memcmp(message, (void *) page_addr, data_index) != 0){
-                uart_write(UART2, "Error while writing");
+                uart_write_str(UART2, "Error while writing");
                 uart_write(UART1, TYPE);
                 uart_write(UART1, ERROR);
                 error = 1;
