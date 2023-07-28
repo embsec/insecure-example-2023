@@ -79,7 +79,7 @@ def send_metadata(ser, metadata, debug=False):
     while ser.read(1).decode() != "U":
         print("got a byte")
         pass
-    
+    print("ok got here")
     #write metadata (START frame)
     ser.write(metadata)
     print(ser.read(2))
@@ -87,9 +87,12 @@ def send_metadata(ser, metadata, debug=False):
     if debug:
         print(metadata)
     
+    print("starting to read return frame")
     # check for an OK from the bootloader.
-    returnmessagetype = u8(ser.read(1))
-    returnmessageinfo = u8(ser.read(1))
+    returnmessagetype = ser.read(1)
+    returnmessageinfo = ser.read(1)
+    print("messagetype" + returnmessagetype)
+    print("messageinfo" + returnmessageinfo)
     # TODO: right now, wrong init frame with throw error and end update, should we keep it this way, or have it resend?
     if returnmessageinfo != OK or returnmessagetype != 4:
         raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(returnmessageinfo)))
