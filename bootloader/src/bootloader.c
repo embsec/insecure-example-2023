@@ -369,7 +369,7 @@ void load_firmware(void){
                 uart_write_str(UART2, "error decrypting data array");
                 uart_write(UART1, TYPE);
                 uart_write(UART1, ERROR);
-            }else if (data_arr[0] != 3){
+            }else if (data_arr[0] != 2){
                 uart_write_str(UART2, "Incorrect Message Type");
                 uart_write(UART1, TYPE);
                 uart_write(UART1, ERROR);
