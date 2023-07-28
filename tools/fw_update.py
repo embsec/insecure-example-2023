@@ -80,21 +80,8 @@ def send_metadata(ser, metadata, debug=False):
         print("got a byte")
         pass
     print("ok got here")
-    #write metadata (START frame)
-    ser.write(metadata)
     
-    if debug:
-        print(metadata)
-    
-    print("starting to read return frame")
-    # check for an OK from the bootloader.
-    returnmessagetype = ser.read(1)
-    returnmessageinfo = ser.read(1)
-    print("messagetype" + str(returnmessagetype))
-    print("messageinfo" + str(returnmessageinfo))
-    # TODO: right now, wrong init frame with throw error and end update, should we keep it this way, or have it resend?
-    if returnmessageinfo != OK or returnmessagetype != b'\x04':
-        raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(returnmessageinfo)))
+    send_frame(metadata)
 
 
 def send_frame(ser, frame, debug=False):
@@ -115,9 +102,9 @@ def send_frame(ser, frame, debug=False):
             raise RuntimeError("invalid frame sent too many times, aborting")
         
         # get return message type
-        returnmessagetype = u8(ser.read(1))
+        returnmessagetype = ser.read(1)
         #get return message info
-        returnmessageinfo = u8(ser.read(1))
+        returnmessageinfo = ser.read(1)
         time.sleep(0.1)
         
         if debug:
