@@ -17,7 +17,7 @@ def randPad(data, size):#Pads using random data cus we're too cool for pkcs7
     toPad = size - len(data) % size#Calculates how many bytes of padding to add
     randData = b""
     for i in range(toPad):
-        randData += p8(random.randint(0, 255), endian = "big")#Generates random bytes
+        randData += p8(random.randint(0, 255), endian = "little")#Generates random bytes
     
     return data + randData
 
@@ -51,9 +51,9 @@ def protect_firmware(infile, outfile, version, message, secret):
     i = 0
     for i in range (0, len(firmware), 15):#Breaks firmware binary into chunks and runs those chunks through encrypt(). Uses keys from secret_build_output.txt.
         if ((len(firmware) - i) // 15 != 0):#If the firmware fills a full chunk, encrypt 15 bytes of data
-            encrypted += encrypt((p8(2, endian = "big") + firmware[i : i + 15]), key, header)
+            encrypted += encrypt((p8(2, endian = "little") + firmware[i : i + 15]), key, header)
     if (len(firmware) % 15 != 0):#Pads what's left over and encrypts it as 16 bytes. Done so no matter what, every frame is 48 bytes
-        encrypted += encrypt(randPad((p8(2, endian = "big") + firmware[i : len(firmware)]), 16), key, header)
+        encrypted += encrypt(randPad((p8(2, endian = "little") + firmware[i : len(firmware)]), 16), key, header)
 
     # Append message to end of firmware
     #firmware_and_message = firmware + encrypt(pad(p8(5, endian = "big") + message.encode(), 16), key, header)
@@ -63,17 +63,17 @@ def protect_firmware(infile, outfile, version, message, secret):
     
     for i in range (0, len(messageBin), 15):#Breaks message into chunks and runs those chunks through encrypt(). Uses keys from secret_build_output.txt.
         if ((len(messageBin) - i) // 15 != 0):#If the firmware fills a full chunk, encrypt 15 bytes
-            messageEncrypted += encrypt((p8(5, endian = "big") + messageBin[i : i + 15]), key, header)
+            messageEncrypted += encrypt((p8(5, endian = "little") + messageBin[i : i + 15]), key, header)
         
     if (len(messageBin) % 15 != 0):#Pads what's left over
-        messageEncrypted += encrypt(randPad((p8(5, endian = "big") + messageBin[i : len(firmware)]), 16), key, header)
+        messageEncrypted += encrypt(randPad((p8(5, endian = "little") + messageBin[i : len(firmware)]), 16), key, header)
     firmware_and_message = firmware + messageEncrypted
-    
+    print(len(firmware))
     
     # Pack message type as a uint8, and version, firmware length and message length as uint16s and encrypts them
-    beginFrame = encrypt(randPad(p8(1, endian = "big") + p16(version, endian = "big") + p16(len(firmware), endian = "big") + p16(len(message), endian = "big"), 16), key, header)
+    beginFrame = encrypt(randPad(p8(1, endian = "little") + p16(version, endian = "little") + p16(len(firmware), endian = "little") + p16(len(message), endian = "little"), 16), key, header)
     #Generates end frame and encrypts it
-    endFrame = encrypt(randPad(p8(3, endian = "big"), 16), key, header)
+    endFrame = encrypt(randPad(p8(3, endian = "little"), 16), key, header)
     print(beginFrame)
     # Append firmware and message to metadata
     firmware_blob = beginFrame + encrypted + messageEncrypted + endFrame #Builds firmware blob
