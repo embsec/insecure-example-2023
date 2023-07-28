@@ -63,6 +63,7 @@ import socket
 from util import *
 
 from Crypto.Util.Padding import pad
+from pwn import *
 
 OK = b"\x00"
 ERROR = b"\x01"
