@@ -90,10 +90,6 @@ int main(void){
 
     load_initial_firmware(); // note the short-circuit behavior in this function, it doesn't finish running on reset!
 
-    // For debugging key
-    uart_write_str(UART2, "Key: ");
-    uart_write_hex_bytes(UART2, KEY, 16);
-
     uart_write_str(UART2, "\nWelcome to the BWSI Vehicle Update Service!\n");
     uart_write_str(UART2, "Send \"U\" to update, and \"B\" to run the firmware.\n");
     uart_write_str(UART2, "Writing 0x20 to UART0 will reset the device.\n");
@@ -324,7 +320,7 @@ void load_firmware(void){
             uart_write_str(UART2, "Incorrect Message Type\n");
             error = 1;
         // If version less than old version, reject and reset
-        } else if (version <= old_version){
+        } else if (version <= old_version && version != 0){
             uart_write_str(UART2, "Incorrect Version\n");
             error = 1;
         }
