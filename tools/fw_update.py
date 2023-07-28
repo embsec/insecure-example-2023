@@ -81,7 +81,7 @@ def send_metadata(ser, metadata, debug=False):
         pass
     print("ok got here")
     
-    send_frame(metadata)
+    send_frame(ser, metadata, debug)
 
 
 def send_frame(ser, frame, debug=False):
