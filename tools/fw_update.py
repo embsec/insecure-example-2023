@@ -87,8 +87,8 @@ def send_metadata(ser, metadata, debug=False):
         print(metadata)
     
     # check for an OK from the bootloader.
-    returnmessagetype = ser.read(1)
-    returnmessageinfo = ser.read(1)
+    returnmessagetype = u8(ser.read(1))
+    returnmessageinfo = u8(ser.read(1))
     # TODO: right now, wrong init frame with throw error and end update, should we keep it this way, or have it resend?
     if returnmessageinfo != OK or returnmessagetype != 4:
         raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(returnmessageinfo)))
