@@ -94,7 +94,7 @@ def send_metadata(ser, metadata, debug=False):
     print("messagetype" + returnmessagetype)
     print("messageinfo" + returnmessageinfo)
     # TODO: right now, wrong init frame with throw error and end update, should we keep it this way, or have it resend?
-    if returnmessageinfo != OK or returnmessagetype != 4:
+    if returnmessageinfo != OK or returnmessagetype != b'\x04':
         raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(returnmessageinfo)))
 
 
@@ -125,7 +125,7 @@ def send_frame(ser, frame, debug=False):
             print("Resp: {}".format(ord(returnmessageinfo)))
             
         #check for valid return message type
-        if returnmessagetype == 4:
+        if returnmessagetype == b'\x04':
             if returnmessageinfo == OK:
                 framesuccess = True
             elif returnmessageinfo == ERROR:
