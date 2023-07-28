@@ -13,7 +13,7 @@ A START frame consists of five sections plus padding:
 4. 2 bytes for release message size
 5. 16 bytes for GCM tag
 
-        [ 0x1 ]      [ 0x2 ]       [0x2]              [0x2]            [0x9]       [0x10]
+        [ 0x1 ]      [ 0x2 ]       [0x2]              [0x2]            [0x9]       [0x9]
 ------------------------------------------------------------------------------------------------
 | Message Type (1) | Version | Firmware Size | Release Message Size | GCM Tag | needed padding |
 ------------------------------------------------------------------------------------------------
@@ -82,7 +82,6 @@ def send_metadata(ser, metadata, debug=False):
     print("ok got here")
     #write metadata (START frame)
     ser.write(metadata)
-    print(ser.read(2))
     
     if debug:
         print(metadata)
@@ -91,8 +90,8 @@ def send_metadata(ser, metadata, debug=False):
     # check for an OK from the bootloader.
     returnmessagetype = ser.read(1)
     returnmessageinfo = ser.read(1)
-    print("messagetype" + returnmessagetype)
-    print("messageinfo" + returnmessageinfo)
+    print("messagetype" + str(returnmessagetype))
+    print("messageinfo" + str(returnmessageinfo))
     # TODO: right now, wrong init frame with throw error and end update, should we keep it this way, or have it resend?
     if returnmessageinfo != OK or returnmessagetype != b'\x04':
         raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(returnmessageinfo)))
@@ -186,7 +185,7 @@ if __name__ == "__main__":
     time.sleep(0.2)
 
     uart2_sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    #uart2_sock.connect(UART2_PATH)
+    uart2_sock.connect(UART2_PATH)
 
     # Close unused UARTs (if we leave these open it will hang)
     uart2_sock.close()
