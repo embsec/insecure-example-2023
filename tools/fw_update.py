@@ -112,9 +112,9 @@ def send_frame(ser, frame, debug=False):
             raise RuntimeError("invalid frame sent too many times, aborting")
         
         # get return message type
-        returnmessagetype = ser.read(1)
+        returnmessagetype = u8(ser.read(1))
         #get return message info
-        returnmessageinfo = ser.read(1)
+        returnmessageinfo = u8(ser.read(1))
         time.sleep(0.1)
         
         if debug:
