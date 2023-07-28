@@ -90,7 +90,11 @@ int main(void){
 
     load_initial_firmware(); // note the short-circuit behavior in this function, it doesn't finish running on reset!
 
-    uart_write_str(UART2, "Welcome to the BWSI Vehicle Update Service!\n");
+    // For debugging key
+    uart_write_str(UART2, "Key: ");
+    uart_write_hex_bytes(UART2, KEY, 16);
+
+    uart_write_str(UART2, "\nWelcome to the BWSI Vehicle Update Service!\n");
     uart_write_str(UART2, "Send \"U\" to update, and \"B\" to run the firmware.\n");
     uart_write_str(UART2, "Writing 0x20 to UART0 will reset the device.\n");
 
