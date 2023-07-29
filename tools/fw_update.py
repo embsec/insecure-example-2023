@@ -3,59 +3,6 @@
 # Copyright 2023 The MITRE Corporation. ALL RIGHTS RESERVED
 # Approved for public release. Distribution unlimited 23-02181-13.
 
-"""
-Firmware Updater Tool
-
-A START frame consists of five sections plus padding:
-1. 1 byte for the message type(1)
-2. 2 bytes for the version
-3. 2 bytes for the Firmware Size
-4. 2 bytes for release message size
-5. 16 bytes for GCM tag
-
-        [ 0x1 ]      [ 0x2 ]       [0x2]              [0x2]            [0x9]       [0x9]
-------------------------------------------------------------------------------------------------
-| Message Type (1) | Version | Firmware Size | Release Message Size | GCM Tag | needed padding |
-------------------------------------------------------------------------------------------------
-
-A DATA frame consists of four sections:
-1. 1 byte for the message type(2)
-2. 15 bytes for data
-3. 16 bytes for GCM tag
-4. 16 bytes for nonce
-
-       [ 0x1 ]      [ 0xF ] [0x10]   [0x10]                  
----------------------------------------------
-| Message Type (2) | Data | GCM Tag | Nonce | 
----------------------------------------------
-
-An END frame consists of four sections:
-1. 1 byte for the message type(3)
-2. 15 bytes of padding
-3. 16 bytes for GCM tag
-4. 16 bytes for nonce
-
-       [ 0x1 ]       [ 0xF ]    [0x10]  [0x10]                  
-------------------------------------------------
-| Message Type (3) | Padding | GCM Tag | Nonce | 
-------------------------------------------------
-
-A RESPONSE frame consists of 2 sections:
-1. 1 byte for the message type(4)
-2. 1 byte for the message
-
-       [ 0x1 ]       [ 0x1 ]                      
-------------------------------
-| Message Type (4) | Message |
-------------------------------
-
-In our case, the data is from one line of the Intel Hex formated .hex file
-
-We write a frame to the bootloader, then wait for it to respond with an
-OK message so we can write the next frame, else we resend up to ten times.
-
-"""
-
 import argparse
 import time
 import socket

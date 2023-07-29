@@ -29,9 +29,6 @@ def encrypt(data, key, header):
     # print("SIZE: " + str(len(ciphertext))) #DEBUG
     return(ciphertext + tag + cipher.nonce)#Returns encrypted data
 
-
-
-
 def protect_firmware(infile, outfile, version, message, secret):
     # Load firmware binary from infile
     with open(infile, 'rb') as fp:
