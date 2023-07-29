@@ -63,10 +63,10 @@ def protect_firmware(infile, outfile, version, message, secret):
     
     for i in range (0, len(messageBin), 15):#Breaks message into chunks and runs those chunks through encrypt(). Uses keys from secret_build_output.txt.
         if ((len(messageBin) - i) // 15 != 0):#If the firmware fills a full chunk, encrypt 15 bytes
-            messageEncrypted += encrypt((p8(5, endian = "little") + messageBin[i : i + 15]), key, header)
+            messageEncrypted += encrypt((p8(2, endian = "little") + messageBin[i : i + 15]), key, header)
         
     if (len(messageBin) % 15 != 0):#Pads what's left over
-        messageEncrypted += encrypt(randPad((p8(5, endian = "little") + messageBin[i : len(firmware)]), 16), key, header)
+        messageEncrypted += encrypt(randPad((p8(2, endian = "little") + messageBin[i : len(firmware)]), 16), key, header)
     firmware_and_message = firmware + messageEncrypted
     print(len(firmware))
     
