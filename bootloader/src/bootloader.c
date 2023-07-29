@@ -231,22 +231,6 @@ int frame_decrypt(uint8_t *arr){
     // Decrypt data
     br_gcm_run(&context, 0, packet_data, 16);
 
-/*int gcm_decrypt_and_verify(char* key, char* iv, char* ct, int ct_len, char* aad, int aad_len, char* tag) {
-    br_aes_ct_ctr_keys bc;
-    br_gcm_context gc;
-    br_aes_ct_ctr_init(&bc, key, 16);
-    br_gcm_init(&gc, &bc.vtable, br_ghash_ctmul32);
-
-    br_gcm_reset(&gc, iv, 16);         
-    br_gcm_aad_inject(&gc, aad, aad_len);    
-    br_gcm_flip(&gc);                        
-    br_gcm_run(&gc, 0, ct, ct_len);   
-    if (br_gcm_check_tag(&gc, tag)) {
-        return 1;
-    }
-    return 0; 
-}*/
-
     // Add data to arr, then return if everything's ok
     for (int i = 0; i < 16; i += 1) {
         arr[i] = packet_data[i];
@@ -274,7 +258,7 @@ void load_firmware(void){
     int error;              // stores frame_decrypt return
     int error_counter = 0;
 
-    uint32_t data_index;            // Length of current data chunk written to flash
+    uint32_t data_index = 0;            // Length of current data chunk written to flash
     uint32_t page_addr = FW_BASE;   // Address to write to in flash
 
     // variables to store data from START frame
@@ -486,62 +470,59 @@ void load_firmware(void){
         uart_write_str(UART2, "Successfully recieved data\ndata: ");
         uart_write_hex(UART2, i);
 
-        // isolate only data from data_arr
-        uint8_t message[15];
-        for (int j = 0; j < 15; j++) {
-            message[i] = data_arr[i+1];
+        // Writing to flash
+        for (int j = 1; j < 16; j++) {
+            // Get the data that will be written
+            data[data_index] = data_arr[j];
+            data_index += 1;
+
+            // If page is filled up or at end of release message, write to flash
+            if ((data_index >= FLASH_PAGESIZE) || (r_size - i == j)) {
+                // Check for errors while writing to flash
+                do {
+                    // Write to flash, then check if data and memory match
+                    if (program_flash(page_addr, data, data_index)){
+                        uart_write_str(UART2, "Error while writing");
+                        uart_write(UART1, TYPE);
+                        uart_write(UART1, ERROR);
+                        error = 1;
+                    } else if (memcmp(data, (void *) page_addr, data_index) != 0){
+                        uart_write_str(UART2, "Error while writing");
+                        uart_write(UART1, TYPE);
+                        uart_write(UART1, ERROR);
+                        error = 1;
+                    }
+                    
+                    // Error timeout
+                    error_counter += error;
+                    if (error_counter > 10){
+                        uart_write_str(UART2, "Too much error. Restarting...");
+                        uart_write(UART1, TYPE);
+                        uart_write(UART1, END);
+                        SysCtlReset();
+                        return;
+                    }
+                } while(error != 0);
+                
+                // Write success and debugging messages to UART2.
+                uart_write_str(UART2, "Page successfully programmed\nAddress: ");
+                uart_write_hex(UART2, page_addr);
+                uart_write_str(UART2, "\nBytes: ");
+                uart_write_hex(UART2, data_index);
+                nl(UART2);
+
+                // Update to next page
+                page_addr += FLASH_PAGESIZE;
+                data_index = 0;
+            }
         }
 
-        // Whrites to flash
-        // Checks if last frame is padded, and if so, change the size argument accordingly for writing to flash
-        if (r_size - i < 15) {
-            data_index = r_size - i;
-        } else {
-            data_index = 15;
-        }
-
-        // Check for errors while writing to flash
-        do {
-            if(program_flash(page_addr, message, data_index)){
-                uart_write_str(UART2, "Error while writing");
-                uart_write(UART1, TYPE);
-                uart_write(UART1, ERROR);
-                error = 1;
-            } else if (memcmp(message, (void *) page_addr, data_index) != 0){
-                uart_write_str(UART2, "Error while writing");
-                uart_write(UART1, TYPE);
-                uart_write(UART1, ERROR);
-                error = 1;
-            }
-
-            error_counter += error;
-    
-            // Error timeout
-            if(error_counter > 10){
-                uart_write_str(UART2, "Too much error. Restarting...");
-                uart_write(UART1, TYPE);
-                uart_write(UART1, END);
-                SysCtlReset();
-                return;
-            }
-            
-        } while(error != 0);
-        
-        error_counter = 0;
-
-        // Write success and debugging messages to UART2.
-        uart_write_str(UART2, "Page successfully programmed\nAddress: ");
-        uart_write_hex(UART2, page_addr);
-        uart_write_str(UART2, "\nBytes: ");
-        uart_write_hex(UART2, data_index);
-        nl(UART2);
-
-        // Update to next page
-        page_addr += 15;
-
-        uart_write_str(UART2, "Packet written.");
+        // Send packet recieved success message
         uart_write(UART1, TYPE);
         uart_write(UART1, OK);
+
+        // Reset counter inbetween packets
+        error_counter = 0;
     }
 
     // read and process and flash END FRAME
