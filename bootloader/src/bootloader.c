@@ -545,7 +545,7 @@ void load_firmware(void){
 
     } while (error != 0);
 
-    uart_write_str(UART2, "End frame processed\n");
+    uart_write_str(UART2, "End frame processed\n\n(ﾉ◕ヮ◕)ﾉ*:･ﾟ✧\n");
 
     // End return
     uart_write(UART1, TYPE);
