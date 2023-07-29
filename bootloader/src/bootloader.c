@@ -193,7 +193,7 @@ int frame_decrypt(uint8_t *arr){
     uint32_t rcv = 0;
 
     // Init packet parts: each is 16 bytes
-    uint8_t data[16];
+    uint8_t packet_data[16];
     uint8_t tag[16];
     uint8_t nonce[16];
 
@@ -202,7 +202,7 @@ int frame_decrypt(uint8_t *arr){
         // Note: uart_read only reads 1 byte @ a time
         //Note: data includes message as first byte
         rcv = uart_read(UART1, BLOCKING, &read);
-        data[i] = rcv;
+        packet_data[i] = rcv;
     }
     for (int i = 0; i < 16; i += 1) {
         rcv = uart_read(UART1, BLOCKING, &read);
@@ -229,7 +229,7 @@ int frame_decrypt(uint8_t *arr){
     br_gcm_flip(&context);
 
     // Decrypt data
-    br_gcm_run(&context, 0, data, 16);
+    br_gcm_run(&context, 0, packet_data, 16);
 
 /*int gcm_decrypt_and_verify(char* key, char* iv, char* ct, int ct_len, char* aad, int aad_len, char* tag) {
     br_aes_ct_ctr_keys bc;
@@ -249,7 +249,7 @@ int frame_decrypt(uint8_t *arr){
 
     // Add data to arr, then return if everything's ok
     for (int i = 0; i < 16; i += 1) {
-        arr[i] = data[i];
+        arr[i] = packet_data[i];
     }
 
     uart_write_str(UART2, "Decrypt done\n");
@@ -284,7 +284,9 @@ void load_firmware(void){
 
    // read and process and flash START frame ONLY
    //**********************************************************************************************************************
+    // Reads and error checks packets
     do {
+        // Read packet
         error = frame_decrypt(data_arr);
 
         // Get version (0x2)
@@ -313,9 +315,10 @@ void load_firmware(void){
             version = old_version;
         }
 
-        // Check for errors
+        // Check for GHASH error
         if (error == 1){
             uart_write_str(UART2, "Incorrect GHASH\n");
+        // Check for incorrect message type
         } else if (data_arr[0] != 1){
             uart_write_str(UART2, "Incorrect Message Type\n");
             error = 1;
@@ -325,15 +328,15 @@ void load_firmware(void){
             error = 1;
         }
 
+        // Reject metadata if any error
         if (error == 1){
-            // Reject metadata
             uart_write(UART1, TYPE);
             uart_write(UART1, ERROR);
             uart_write_str(UART2, "Error sent\n");
         }
 
-        // If there was an error, error_counter increases 1
-        // If error counter is too high, end (by returning out of main)
+        // Implements error timeout
+        // If 10+ errors for a single frame, end by returning out of method
         error_counter += error;
         if (error_counter > 10) {
             uart_write_str(UART2, "Too many bad frames");
@@ -343,7 +346,6 @@ void load_firmware(void){
             return;
         }
     } while (error != 0);
-    // reading START frame FINISHED
 
     // Resets counter, since start frame successful
     error_counter = 0;
@@ -361,12 +363,13 @@ void load_firmware(void){
     // read and process and flash DATA frames
     //**********************************************************************************************************************
     for (int i = 0; i < f_size; i += 15){
+        // Reading and checking for errors
         do {
             error = frame_decrypt(data_arr);
 
             // Error handling
             if (error == 1){
-                uart_write_str(UART2, "error decrypting data array");
+                uart_write_str(UART2, "Incorrect GHASH");
                 uart_write(UART1, TYPE);
                 uart_write(UART1, ERROR);
             }else if (data_arr[0] != 2){
@@ -375,12 +378,11 @@ void load_firmware(void){
                 uart_write(UART1, ERROR);
                 error = 1;
             }
-            //increase error counter if there was an error
-            error_counter += error;
 
-            // Error timeout if too many errors
+            // Error timeout implementation
+            error_counter += error;
             if(error_counter > 10){
-                uart_write_str(UART2, "Too much error. Restarting...");
+                uart_write_str(UART2, "Error timeout...");
                 uart_write(UART1, TYPE);
                 uart_write(UART1, END);
                 SysCtlReset();
@@ -393,66 +395,61 @@ void load_firmware(void){
         uart_write_str(UART2, "Successfully recieved data\ndata: ");
         uart_write_hex(UART2, i);
 
-        // isolate only data from data_arr
-        uint8_t message[15];
-        for (int j = 0; j < 15; j++) {
-            message[i] = data_arr[i+1];
+        // Writing to flash
+        for (int j = 1; j < 16; j++) {
+            // Get the data that will be written
+            data[data_index] = data_arr[j];
+            data_index += 1;
+
+            // If page is filled up, write to flash
+            // Note: also has to check for padding when flashing release message
+            if (data_index >= FLASH_PAGESIZE) {
+                // Check for errors while writing to flash
+                do {
+                    // Write to flash, then check if data and memory match
+                    if (program_flash(page_addr, data, data_index)){
+                        uart_write_str(UART2, "Error while writing");
+                        uart_write(UART1, TYPE);
+                        uart_write(UART1, ERROR);
+                        error = 1;
+                    } else if (memcmp(data, (void *) page_addr, data_index) != 0){
+                        uart_write_str(UART2, "Error while writing");
+                        uart_write(UART1, TYPE);
+                        uart_write(UART1, ERROR);
+                        error = 1;
+                    }
+                    
+                    // Error timeout
+                    error_counter += error;
+                    if (error_counter > 10){
+                        uart_write_str(UART2, "Too much error. Restarting...");
+                        uart_write(UART1, TYPE);
+                        uart_write(UART1, END);
+                        SysCtlReset();
+                        return;
+                    }
+                } while(error != 0);
+                
+                // Write success and debugging messages to UART2.
+                uart_write_str(UART2, "Page successfully programmed\nAddress: ");
+                uart_write_hex(UART2, page_addr);
+                uart_write_str(UART2, "\nBytes: ");
+                uart_write_hex(UART2, data_index);
+                nl(UART2);
+
+                // Update to next page
+                page_addr += FLASH_PAGESIZE;
+                data_index = 0;
+            }
         }
 
-        // Whrites to flash
-        // Checks if last frame is padded, and if so, change the size argument accordingly for writing to flash
-        if (f_size - i < 15) {
-            data_index = f_size - i;
-        } else {
-            data_index = 15;
-        }
-
-        // Check for errors while writing to flash
-        do {
-            if(program_flash(page_addr, message, data_index)){
-                uart_write_str(UART2, "Error while writing");
-                uart_write(UART1, TYPE);
-                uart_write(UART1, ERROR);
-                error = 1;
-            } else if (memcmp(message, (void *) page_addr, data_index) != 0){
-                uart_write_str(UART2, "Error while writing");
-                uart_write(UART1, TYPE);
-                uart_write(UART1, ERROR);
-                error = 1;
-            }
-
-            error_counter += error;
-    
-            // Error timeout
-            if(error_counter > 10){
-                uart_write_str(UART2, "Too much error. Restarting...");
-                uart_write(UART1, TYPE);
-                uart_write(UART1, END);
-                SysCtlReset();
-                return;
-            }
-            
-        } while(error != 0);
-        
-        error_counter = 0;
-
-        // Write success and debugging messages to UART2.
-        uart_write_str(UART2, "Page successfully programmed\nAddress: ");
-        uart_write_hex(UART2, page_addr);
-        uart_write_str(UART2, "\nBytes: ");
-        uart_write_hex(UART2, data_index);
-        nl(UART2);
-
-        // Update to next page
-        page_addr += 15;
-
-        uart_write_str(UART2, "Packet written.");
+        // Send packet recieved success message
         uart_write(UART1, TYPE);
         uart_write(UART1, OK);
-    }
 
-    //reset counter
-    error_counter = 0;
+        // Reset counter inbetween packets
+        error_counter = 0;
+    }
 
     // read and process and flash RELEASE MESSAGE frames
     //**********************************************************************************************************************
