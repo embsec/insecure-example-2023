@@ -371,7 +371,7 @@ void load_firmware(void){
         // Writing to flash
         for (int j = 1; j < 16; j++) {
             // Get the data that will be written
-            if ((f_size - i) - j < 0) {
+            if (f_size - (i + j) > 0) {
                 data[data_index] = data_arr[j];
                 data_index += 1;
             }
@@ -465,7 +465,7 @@ void load_firmware(void){
         // Writing to flash
         for (int j = 1; j < 16; j++) {
             // Get the data that will be written
-            if ((r_size - i) - j < 0) {
+            if (r_size - (i + j) > 0) {
                 data[data_index] = data_arr[j];
                 data_index += 1;
             }
