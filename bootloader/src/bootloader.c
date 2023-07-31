@@ -371,9 +371,11 @@ void load_firmware(void){
         // Writing to flash
         for (int j = 1; j < 16; j++) {
             // Get the data that will be written
-            data[data_index] = data_arr[j];
-            data_index += 1;
-
+            if ((f_size - i) - j < 0) {
+                data[data_index] = data_arr[j];
+                data_index += 1;
+            }
+            
             // If page is filled up, write to flash
             // Note: also has to check for padding when flashing release message
             if (data_index >= FLASH_PAGESIZE) {
@@ -463,8 +465,10 @@ void load_firmware(void){
         // Writing to flash
         for (int j = 1; j < 16; j++) {
             // Get the data that will be written
-            data[data_index] = data_arr[j];
-            data_index += 1;
+            if ((r_size - i) - j < 0) {
+                data[data_index] = data_arr[j];
+                data_index += 1;
+            }
 
             // If page is filled up or at end of release message, write to flash
             if ((data_index >= FLASH_PAGESIZE) || (r_size - i == j)) {
