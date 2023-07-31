@@ -382,7 +382,7 @@ void load_firmware(void){
                 // Check for errors while writing to flash
                 do {
                     // Write to flash, then check if data and memory match
-                    if (program_flash(page_addr, data, data_index)){
+                    if (program_flash(page_addr, data, data_index) == -1){
                         uart_write_str(UART2, "Error while writing\n");
                         uart_write(UART1, TYPE);
                         uart_write(UART1, ERROR);
@@ -434,6 +434,8 @@ void load_firmware(void){
             // Read frames
             error = frame_decrypt(data_arr);
 
+            uart_write_hex_bytes(UART2, data_arr, 4);
+
             // Check for errors
             if (error == 1){
                 uart_write_str(UART2, "Incorrect GHASH\n");
@@ -475,7 +477,7 @@ void load_firmware(void){
                 // Check for errors while writing to flash
                 do {
                     // Write to flash, then check if data and memory match
-                    if (program_flash(page_addr, data, data_index)){
+                    if (program_flash(page_addr, data, data_index) == -1){
                         uart_write_str(UART2, "Error while writing\n");
                         uart_write(UART1, TYPE);
                         uart_write(UART1, ERROR);
@@ -554,7 +556,7 @@ void load_firmware(void){
     // End return
     uart_write(UART1, TYPE);
     uart_write(UART1, OK);
-
+    
     uart_write_str(UART2, "Received Firmware Version: ");
     uart_write_hex(UART2, version);
     uart_write_str(UART2, "Received Release Message Size: ");
