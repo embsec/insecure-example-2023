@@ -378,7 +378,7 @@ void load_firmware(void){
             
             // If page is filled up, write to flash
             // Note: also has to check for padding when flashing release message
-            if (data_index >= FLASH_PAGESIZE) {
+            if (data_index >= FLASH_PAGESIZE - 1) {
                 // Check for errors while writing to flash
                 do {
                     // Write to flash, then check if data and memory match
@@ -473,7 +473,7 @@ void load_firmware(void){
             }
 
             // If page is filled up or at end of release message, write to flash
-            if ((data_index >= FLASH_PAGESIZE) || (r_size - i == j)) {
+            if ((data_index >= FLASH_PAGESIZE - 1) || (r_size - i == j)) {
                 // Check for errors while writing to flash
                 do {
                     // Write to flash, then check if data and memory match
