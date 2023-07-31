@@ -550,6 +550,7 @@ void load_firmware(void){
     // End return
     uart_write(UART1, TYPE);
     uart_write(UART1, OK);
+    return;
 }
 
 /* ****************************************************************
