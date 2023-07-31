@@ -554,6 +554,13 @@ void load_firmware(void){
     // End return
     uart_write(UART1, TYPE);
     uart_write(UART1, OK);
+
+    uart_write_str(UART2, "Received Firmware Version: ");
+    uart_write_hex(UART2, version);
+    uart_write_str(UART2, "Received Release Message Size: ");
+    uart_write_hex(UART2, r_size);
+    uart_write_str(UART2, "Received Firmware Size: ");
+    uart_write_hex(UART2, f_size);
     return;
 }
 
