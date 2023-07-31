@@ -84,7 +84,7 @@ def send_frame(ser, frame, debug=False):
 # Takes serial object, encrypted frames location, and debug
 # Returns serial object input
 def update(ser, infile, debug):
-    # Open serial port. Set baudrate to 115200. Set timeout to 2 seconds.
+    # Open and read file of encrypted packets
     with open(infile, "rb") as fp:
         firmware_blob = fp.read()
 
