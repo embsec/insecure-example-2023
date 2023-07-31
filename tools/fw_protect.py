@@ -10,75 +10,102 @@ Firmware Bundle-and-Protect Tool
 import argparse
 import random
 from Crypto.Cipher import AES
-from  pwn import *
+from pwn import *
 
-def randPad(data, size):#Pads using random data cus we're too cool for pkcs7
+# Pads the input data using random characters
+# Takes the data to be padded, and the completed size
+# Returns padded data
+def randPad(data, size):
+    # Calculates the number of bytes of padding
+    toPad = size - len(data) % size
 
-    toPad = size - len(data) % size#Calculates how many bytes of padding to add
     randData = b""
+    # Generates padding
     for i in range(toPad):
-        randData += p8(random.randint(0, 255), endian = "little")#Generates random bytes
-    
+        randData += p8(random.randint(0, 255), endian = "little")
+
     return data + randData
 
+# Encrypts the input data using GCM
+# Takes the data to be encrypted, the key,
+# and additional authenticated data
+# Returns the encypted data
 def encrypt(data, key, header):
+    # Set up the AES object with the key, mode, and header/aad
+    cipher = AES.new(key, AES.MODE_GCM)
+    cipher.update(header)
 
-    cipher = AES.new(key, AES.MODE_GCM)#instantiates an AES object
-    cipher.update(header)#Updates it to use common header (also on Stellaris)
-    ciphertext, tag = cipher.encrypt_and_digest(data)#Encrypts the data
-    # print("SIZE: " + str(len(ciphertext))) #DEBUG
-    return(ciphertext + tag + cipher.nonce)#Returns encrypted data
+    # Encrypts the data
+    ciphertext, tag = cipher.encrypt_and_digest(data)
+    
+    # Returns encrypted data, tag, and nonce/IV
+    return(ciphertext + tag + cipher.nonce)
 
+# Packages the firmware
+# Takes firmware location, output location,
+# version, release message, and keys location
 def protect_firmware(infile, outfile, version, message, secret):
     # Load firmware binary from infile
     with open(infile, 'rb') as fp:
         firmware = fp.read()
-    #load secret key (256 bits) and header
+
+    # Instantiate and read the key (0x10) and header/aad (0x10)
     key = b""
     header = b""
-    #Reads secret_build_output.txt and parses it into the key (32 bytes) and the header (16 bytes)
     with open (secret, "rb") as fp:
-        key = fp.readline()
-        key = key[0 : len(key) - 1]
-        header = fp.readline()
+        key = fp.read(16);
+        fp.read(1); # Gets rid of new line between key and header
+        header = fp.read(16);
 
-
-    encrypted = b""
-
+    # Encrypt the firmware
+    fwEncrypt = b""
     i = 0
-    for i in range (0, len(firmware), 15):#Breaks firmware binary into chunks and runs those chunks through encrypt(). Uses keys from secret_build_output.txt.
-        if ((len(firmware) - i) // 15 != 0):#If the firmware fills a full chunk, encrypt 15 bytes of data
-            encrypted += encrypt((p8(2, endian = "little") + firmware[i : i + 15]), key, header)
-    if (len(firmware) % 15 != 0):#Pads what's left over and encrypts it as 16 bytes. Done so no matter what, every frame is 48 bytes
-        encrypted += encrypt(randPad((p8(2, endian = "little") + firmware[i : len(firmware)]), 16), key, header)
+    # Breaks into chunks
+    for i in range (0, len(firmware), 15):
+        # Check if the firmware fills a full 0xF chunk
+        if ((len(firmware) - i) // 15 != 0):
+            temp = p8(2, endian = "little") + firmware[i : i + 15] # Message type + firmware
+            fwEncrypt += encrypt(temp, key, header)
+    # If the last chunk is not a 0xF chunk, pads and encrypts
+    if (len(firmware) % 15 != 0):
+        temp = randPad((p8(2, endian = "little") + firmware[i : len(firmware)]), 16) # Message type + firmware + padding
+        fwEncrypt += encrypt(temp, key, header)
 
-    # Append message to end of firmware
-    #firmware_and_message = firmware + encrypt(pad(p8(5, endian = "big") + message.encode(), 16), key, header)
-
+    # Encrypt the release message
     messageBin = message.encode()
-    messageEncrypted = b""
+    rmEncrypt = b""
+    # Breaks into chunks
+    for i in range (0, len(messageBin), 15):
+        # Check if message fills a full 0xF chunk
+        if ((len(messageBin) - i) // 15 != 0):
+            temp = p8(2, endian = "little") + messageBin[i : i + 15] # Type and RM
+            rmEncrypt += encrypt(temp, key, header)
+    # If the last chunk is not a 0xF chunk, pads and encrypts
+    if (len(messageBin) % 15 != 0):
+        temp = randPad((p8(2, endian = "little") + messageBin[i : len(firmware)]), 16) # Type, RM, and padding
+        rmEncrypt += encrypt(temp, key, header)
     
-    for i in range (0, len(messageBin), 15):#Breaks message into chunks and runs those chunks through encrypt(). Uses keys from secret_build_output.txt.
-        if ((len(messageBin) - i) // 15 != 0):#If the firmware fills a full chunk, encrypt 15 bytes
-            messageEncrypted += encrypt((p8(2, endian = "little") + messageBin[i : i + 15]), key, header)
-        
-    if (len(messageBin) % 15 != 0):#Pads what's left over
-        messageEncrypted += encrypt(randPad((p8(2, endian = "little") + messageBin[i : len(firmware)]), 16), key, header)
-    firmware_and_message = firmware + messageEncrypted
-    print(len(firmware))
-    
-    # Pack message type as a uint8, and version, firmware length and message length as uint16s and encrypts them
-    beginFrame = encrypt(randPad(p8(1, endian = "little") + p16(version, endian = "little") + p16(len(firmware), endian = "little") + p16(len(message), endian = "little"), 16), key, header)
-    #Generates end frame and encrypts it
-    endFrame = encrypt(randPad(p8(3, endian = "little"), 16), key, header)
-    print(beginFrame)
-    # Append firmware and message to metadata
-    firmware_blob = beginFrame + encrypted + messageEncrypted + endFrame #Builds firmware blob
+    # Create START frame
+    # Temp is the type + version num + firmware len + RM len + padding
+    temp = randPad(p8(1, endian = "little") + p16(version, endian = "little") + p16(len(firmware), endian = "little") + p16(len(message), endian = "little"), 16)
+    begin = encrypt(temp, key, header)
+
+    # Create END frame
+    # Temp is the type + padding
+    temp = randPad(p8(3, endian = "little"), 16)
+    end = encrypt(temp, key, header)
+
+    # For debugging?
+    # print(begin)
+
+    # Smush the START frame, encrypted firmware and RM, and END frame together
+    firmware_blob = begin + fwEncrypt + rmEncrypt + end
 
     # Write encrypted firmware blob to outfile
     with open(outfile, 'wb+') as outfile:
         outfile.write(firmware_blob)
     
+# Runs the program
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Firmware Update Tool')
     parser.add_argument("--infile", help="Path to the firmware image to protect.", required=True)
