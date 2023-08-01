@@ -73,7 +73,7 @@ def protect_firmware(infile, outfile, version, message, secret):
 
     # Encode and encrypt the release message
     messageBin = message.encode()
-    messageBin += b"\00"
+    messageBin += b"\x00"
     rmEncrypt = b""
     # Breaks into chunks
     for i in range (0, len(messageBin), 15):
