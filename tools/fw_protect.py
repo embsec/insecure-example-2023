@@ -71,7 +71,7 @@ def protect_firmware(infile, outfile, version, message, secret):
         temp = randPad((p8(2, endian = "little") + firmware[i : len(firmware)]), 16) # Message type + firmware + padding
         fwEncrypt += temp
 
-    # Encrypt the release message
+    # Encode and encrypt the release message
     messageBin = message.encode()
     messageBin += b"\00"
     rmEncrypt = b""
@@ -89,7 +89,7 @@ def protect_firmware(infile, outfile, version, message, secret):
 
     # Create START frame
     # Temp is the type + version num + firmware len + RM len + padding
-    temp = randPad(p8(1, endian = "little") + p16(version, endian = "little") + p16(len(firmware), endian = "little") + p16(len(message), endian = "little"), 16)
+    temp = randPad(p8(1, endian = "little") + p16(version, endian = "little") + p16(len(firmware), endian = "little") + p16(len(messageBin), endian = "little"), 16)
     begin = temp
 
     # Create END frame
@@ -99,10 +99,10 @@ def protect_firmware(infile, outfile, version, message, secret):
 
     # For debugging?
     # print(begin)
-
+    
     # Smush the START frame, encrypted firmware and RM, and END frame together
     firmware_blob = begin + fwEncrypt + rmEncrypt + end
-
+    print(firmware_blob)
     # Write encrypted firmware blob to outfile
     with open(outfile, 'wb+') as outfile:
         outfile.write(firmware_blob)
