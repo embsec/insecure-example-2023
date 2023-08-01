@@ -255,7 +255,7 @@ void load_firmware(void){
     uart_write_str(UART2, "\nUpdate started\n");
 
     uint8_t chunk_arr[16];   // Stores 1 packet, and is overwritten every decrypt
-    int error;              // stores frame_decrypt return
+    int error = 0;              // stores frame_decrypt return
     int error_counter = 0;
 
     uint32_t data_index = 0;            // Length of current data chunk written to flash
