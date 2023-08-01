@@ -396,7 +396,7 @@ void load_firmware(void){
             
             // If page is filled up, write to flash
             // Note: also has to check for padding when flashing release message
-            if (data_index >= FLASH_PAGESIZE - 1) {
+            if (data_index >= FLASH_PAGESIZE) {
                 uart_write_hex_bytes(UART2, complete_data, 1024);
 
                 // Check for errors while writing to flash
