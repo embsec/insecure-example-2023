@@ -80,7 +80,7 @@ def protect_firmware(infile, outfile, version, message, secret):
         # Check if message fills a full 0xF chunk
         if ((len(messageBin) - i) // 15 != 0):
             temp = p8(2, endian = "little") + messageBin[i : i + 15] # Type and RM
-            rmEncrypt += temp, key, header
+            rmEncrypt += temp
 
     # If the last chunk is not a 0xF chunk, pads and encrypts
     if (len(messageBin) % 15 != 0):
