@@ -270,7 +270,10 @@ void load_firmware(void){
     // Read START frame and checks for errors
     do {
         // Read frame
-        error = frame_decrypt(chunk_arr);
+        int read = 0;
+        for (int i = 0; i < 16; i += 1) {
+            chunk_arr[i] = uart_read(UART1, BLOCKING, &read);
+        }
 
         // Get version (0x2)
         version = (uint16_t)chunk_arr[1];
@@ -349,7 +352,10 @@ void load_firmware(void){
         // Reading and checking for errors
         do {
             // Read frames
-            error = frame_decrypt(chunk_arr);
+            int read = 0;
+            for (int i = 0; i < 16; i += 1) {
+                chunk_arr[i] = uart_read(UART1, BLOCKING, &read);
+            }
 
             // Error handling
             if (error == 1){
@@ -446,7 +452,10 @@ void load_firmware(void){
         // Read and check for errors
         do{
             // Read frames
-            error = frame_decrypt(chunk_arr);
+            int read = 0;
+            for (int i = 0; i < 16; i += 1) {
+                chunk_arr[i] = uart_read(UART1, BLOCKING, &read);
+            }
 
             // Check for errors
             if (error == 1){
@@ -539,7 +548,10 @@ void load_firmware(void){
     // Process END frame
     do {
         // Read frame
-        error = frame_decrypt(chunk_arr);
+        int read = 0;
+        for (int i = 0; i < 16; i += 1) {
+            chunk_arr[i] = uart_read(UART1, BLOCKING, &read);
+        }
 
         // Check for errors
         if (error == 1){
