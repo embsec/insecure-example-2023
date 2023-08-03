@@ -54,8 +54,7 @@ uint8_t *fw_release_message_address;
 void uart_write_hex_bytes(uint8_t uart, uint8_t * start, uint32_t len);
 
 // Firmware Buffer
-unsigned char complete_data[FLASH_PAGESIZE];
-unsigned char backup[FLASH_PAGESIZE];
+unsigned char complete_data[1024];
 
 /* ****************************************************************
  *
@@ -255,6 +254,7 @@ void load_firmware(void){
     uart_write_str(UART2, "\nUpdate started\n");
 
     uint8_t chunk_arr[16];   // Stores 1 packet, and is overwritten every decrypt
+    uint8_t type = 0;
     int error = 0;              // stores frame_decrypt return
     int error_counter = 0;
 
@@ -271,9 +271,26 @@ void load_firmware(void){
     do {
         // Read frame
         int read = 0;
-        for (int i = 0; i < 16; i += 1) {
-            chunk_arr[i] = uart_read(UART1, BLOCKING, &read);
+        uint8_t rcv = 0;
+
+        //unsigned char gen_hash[32];
+        unsigned char tag[32];
+
+        type = uart_read(UART1, BLOCKING, &read);     // Message Type
+        for (int i = 0; i < 1024; i += 1) { // Data
+            rcv = uart_read(UART1, BLOCKING, &read);
+            complete_data[i] = rcv;
         }
+        for (int i = 0; i < 32; i += 1) {             // Tag
+            rcv = uart_read(UART1, BLOCKING, &read);
+            tag[i] = rcv;
+        }
+
+        // uart_write_hex_bytes(UART2, tag, 32);
+        // nl(UART2);
+        uart_write_hex_bytes(UART2, complete_data, FLASH_PAGESIZE);
+
+        return;
 
         // Get version (0x2)
         version = (uint16_t)chunk_arr[1];
