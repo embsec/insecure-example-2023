@@ -14,7 +14,7 @@
 
 // Library Imports
 #include <string.h>
-#include <beaverssl.h> // Crypto library
+#include <bearssl.h> // Crypto library
 
 // Application Imports
 #include "uart.h"
@@ -54,7 +54,9 @@ uint8_t *fw_release_message_address;
 void uart_write_hex_bytes(uint8_t uart, uint8_t * start, uint32_t len);
 
 // Firmware Buffer
-unsigned char complete_data[1024];
+volatile unsigned char complete_data[1024];
+volatile unsigned char gen_hash[32];
+volatile unsigned char recieved_hash[32];
 
 /* ****************************************************************
  *
@@ -192,7 +194,7 @@ int frame_decrypt(uint8_t *arr){
 
     // Packet components: each is 16 bytes
     // The data array is not declared here, as it is a parameter
-    uint8_t tag[16];
+    uint8_t recieved_hash[16];
     uint8_t nonce[16];
 
     // Reads the packet
@@ -202,7 +204,7 @@ int frame_decrypt(uint8_t *arr){
     }
     for (int i = 0; i < 16; i += 1) {
         rcv = uart_read(UART1, BLOCKING, &read);
-        tag[i] = rcv;
+        recieved_hash[i] = rcv;
     }
     for (int i = 0; i < 16; i += 1) {
         rcv = uart_read(UART1, BLOCKING, &read);
@@ -215,30 +217,31 @@ int frame_decrypt(uint8_t *arr){
     }*/
 
     // Initialize the GCM, with counter and GHASH
-    br_aes_ct_ctr_keys counter;
-    br_gcm_context context;
-    br_aes_ct_ctr_init(&counter, KEY, 16); // Note: KEY is a macro in keys.h
-    br_gcm_init(&context, &counter.vtable, br_ghash_ctmul32);
+    // br_aes_ct_ctr_keys counter;
+    // br_gcm_context context;
+    // br_aes_ct_ctr_init(&counter, KEY, 16); // Note: KEY is a macro in keys.h
+    // br_gcm_init(&context, &counter.vtable, br_ghash_ctmul32);
 
-    // Add nonce and header
-    br_gcm_reset(&context, nonce, 16);
-    br_gcm_aad_inject(&context, HEADER, 16); // HEADER is also a macro in keys.h
-    br_gcm_flip(&context);
+    // // Add nonce and header
+    // br_gcm_reset(&context, nonce, 16);
+    // br_gcm_aad_inject(&context, HEADER, 16); // HEADER is also a macro in keys.h
+    // br_gcm_flip(&context);
 
-    // Decrypt data
-    br_gcm_run(&context, 0, arr, 16);
+    // // Decrypt data
+    // br_gcm_run(&context, 0, arr, 16);
 
-    /*for (int i = 0; i < 1024; i += 1) {
-        complete_data[i] = backup[i];
-    }
-    */
+    // /*for (int i = 0; i < 1024; i += 1) {
+    //     complete_data[i] = backup[i];
+    // }
+    // */
 
-    // Check GHASH
-    if (br_gcm_check_tag(&context, tag)) {
-        return 0;
-    } else {
-        return 1;
-    }
+    // // Check GHASH
+    // if (br_gcm_check_recieved_hash(&context, recieved_hash)) {
+    //     return 0;
+    // } else {
+    //     return 1;
+    // }
+    return 1;
 }
 
 /* ****************************************************************
@@ -266,6 +269,10 @@ void load_firmware(void){
     uint16_t f_size;
     uint16_t r_size;
 
+    for (int c = 0; c < 32; c++){
+        gen_hash[c] = 0;
+        recieved_hash[c] = 0;
+    }
     // ************************************************************
     // Read START frame and checks for errors
     do {
@@ -273,31 +280,36 @@ void load_firmware(void){
         int read = 0;
         uint8_t rcv = 0;
 
-        unsigned char gen_hash[32];
-        unsigned char tag[32];
-
         type = uart_read(UART1, BLOCKING, &read);     // Message Type
         for (int i = 0; i < 1024; i += 1) { // Data
             rcv = uart_read(UART1, BLOCKING, &read);
             complete_data[i] = rcv;
         }
-        for (int i = 0; i < 32; i += 1) {             // Tag
+        for (int i = 0; i < 32; i += 1) {             // recieved_hash
             rcv = uart_read(UART1, BLOCKING, &read);
-            tag[i] = rcv;
+            recieved_hash[i] = rcv;
         }
 
         // nl(UART2);
         uart_write_hex_bytes(UART2, complete_data, FLASH_PAGESIZE);
         nl(UART2);
-        uart_write_hex_bytes(UART2, tag , 32);
+        uart_write_hex_bytes(UART2, recieved_hash , 32);
 
-        sha_hash(complete_data, 1024, gen_hash);
-        nl(UART2);
+        volatile br_sha256_context ctx;
+        int owo = sizeof(br_sha256_context);
+        for (int uwu = 0; uwu < owo; uwu++){
+            ((uint8_t *)&ctx)[uwu] = 0;
+        }
+        br_sha256_init(&ctx); // Initialize SHA256 context
+        br_sha256_update(&ctx, complete_data, 1024); // Update context with data
+        br_sha256_out(&ctx, gen_hash);
+    
+        uart_write_str(UART2, "SHA256 Hash: ");
         uart_write_hex_bytes(UART2, gen_hash, 32);
         nl(UART2);
 
         for (int i = 0; i < 32; i += 0) {
-            if (gen_hash[i] != tag[i]){
+            if (gen_hash[i] != recieved_hash[i]){
                 error = 1;
             }
         }
