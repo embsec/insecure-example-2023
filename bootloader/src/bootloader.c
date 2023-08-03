@@ -14,7 +14,7 @@
 
 // Library Imports
 #include <string.h>
-#include <bearssl_aead.h> // Crypto library
+#include <beaverssl.h> // Crypto library
 
 // Application Imports
 #include "uart.h"
@@ -273,7 +273,7 @@ void load_firmware(void){
         int read = 0;
         uint8_t rcv = 0;
 
-        //unsigned char gen_hash[32];
+        unsigned char gen_hash[32];
         unsigned char tag[32];
 
         type = uart_read(UART1, BLOCKING, &read);     // Message Type
@@ -288,7 +288,21 @@ void load_firmware(void){
 
         // nl(UART2);
         uart_write_hex_bytes(UART2, complete_data, FLASH_PAGESIZE);
+        nl(UART2);
         uart_write_hex_bytes(UART2, tag , 32);
+
+        sha_hash(complete_data, 1024, gen_hash);
+        nl(UART2);
+        uart_write_hex_bytes(UART2, gen_hash, 32);
+        nl(UART2);
+
+        if (gen_hash == tag) {
+            uart_write(UART1, TYPE);
+            uart_write(UART1, OK);
+        } else {
+            uart_write(UART1, TYPE);
+            uart_write(UART1, END);
+        }
 
         return;
 

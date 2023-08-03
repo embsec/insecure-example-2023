@@ -65,12 +65,12 @@ def protect_firmware(infile, outfile, version, message, secret):
     for i in range (0, len(firmware), 1024):
         # Check if the firmware fills a full 0xF chunk
         if ((len(firmware) - i) // 1024 != 0):
-            temp = p8(2, endian = "little") + firmware[i : i + 1024] # Message type + firmware
+            temp = p8(2, endian = "little") + encrypt(firmware[i : i + 1024], key, header) # Message type + firmware
             fwEncrypt += temp
     # If the last chunk is not a 0xF chunk, pads and encrypts
     if (len(firmware) % 1024 != 0):
-        temp = randPad((p8(2, endian = "little") + firmware[i : len(firmware)]), 1024) # Message type + firmware + padding
-        fwEncrypt += temp
+        temp = randPad(( firmware[i : len(firmware)]), 1024) # Message type + firmware + padding
+        fwEncrypt += p8(2, endian = "little") + encrypt(temp, key, header)
 
     # Encode and encrypt the release message
     messageBin = message.encode()
