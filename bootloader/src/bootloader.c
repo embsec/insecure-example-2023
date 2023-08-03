@@ -286,9 +286,9 @@ void load_firmware(void){
             tag[i] = rcv;
         }
 
-        // uart_write_hex_bytes(UART2, tag, 32);
         // nl(UART2);
         uart_write_hex_bytes(UART2, complete_data, FLASH_PAGESIZE);
+        uart_write_hex_bytes(UART2, tag , 32);
 
         return;
 
