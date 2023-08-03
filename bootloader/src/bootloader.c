@@ -296,14 +296,11 @@ void load_firmware(void){
         uart_write_hex_bytes(UART2, gen_hash, 32);
         nl(UART2);
 
-        if (gen_hash == tag) {
-            uart_write(UART1, TYPE);
-            uart_write(UART1, OK);
-        } else {
-            uart_write(UART1, TYPE);
-            uart_write(UART1, END);
+        for (int i = 0; i < 32; i += 0) {
+            if (gen_hash[i] != tag[i]){
+                error = 1;
+            }
         }
-
         return;
 
         // Get version (0x2)
