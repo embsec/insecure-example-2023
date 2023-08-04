@@ -177,10 +177,11 @@ void load_initial_firmware(void){
 
 /*
 ****************************************************************
-* Takes in a number of bytes to read, a UART to read them from, 
-* and a blocking value and a destination to write them to
-* Returns 0 if reading the whole thing went successfully
-* Returns a 1 if otherwise
+* Reads a given number of bytes from UART1
+* 
+* \param bytes is the number of bytes to be read
+* \param dest is where to write them
+* \return Returns 0 if reading successful, 1 if not
 ****************************************************************
 */
 int uart_read_bytes(int bytes, uint8_t* dest){
