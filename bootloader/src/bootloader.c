@@ -182,17 +182,15 @@ void load_initial_firmware(void){
  * 
  * ****************************************************************
  */
-int frame_decrypt(uint8_t *arr){
+int frame_decrypt(uint8_t *arr, uint8_t *expected_type){
     // Misc vars for reading
     int read = 0;
     uint32_t rcv = 0;
-
     uint8_t type = 0;
+    int error = 0;
 
     volatile unsigned char gen_hash[32];
     volatile unsigned char recieved_hash[32];
-
-    int error = 0;
 
     for (int c = 0; c < 32; c++){
         gen_hash[c] = 0;
@@ -202,7 +200,7 @@ int frame_decrypt(uint8_t *arr){
     //reads TYPE
     type = uart_read(UART1, BLOCKING, &read);     // Message Type
     //check if TYPE equals data message type
-    if (type != 2){
+    if (type != expected_type){
         error = 1;
         return error;
     }
@@ -253,7 +251,6 @@ int frame_decrypt(uint8_t *arr){
 void load_firmware(void){
     uart_write_str(UART2, "\nUpdate started\n");
 
-    uint8_t chunk_arr[16];   // Stores 1 packet, and is overwritten every decrypt
     uint8_t type = 0;
     int error = 0;              // stores frame_decrypt return
     int error_counter = 0;
@@ -272,7 +269,7 @@ void load_firmware(void){
     // Read START frame and checks for errors
     do {
         // Read frame
-        int read = 0;
+        /*int read = 0;
         uint8_t rcv = 0;
 
         type = uart_read(UART1, BLOCKING, &read);     // Message Type
@@ -314,23 +311,25 @@ void load_firmware(void){
             uart_write_str(UART2, "owowowowowowow");
         }
 
-        return;
+        return; */
+
+        error = frame_decrypt(complete_data, 1);
 
         // Get version (0x2)
-        version = (uint16_t)chunk_arr[1];
-        version |= (uint16_t)chunk_arr[2] << 8;
+        version = (uint16_t)complete_data[0];
+        version |= (uint16_t)complete_data[1] << 8;
         uart_write_str(UART2, "Received Firmware Version: ");
         uart_write_hex(UART2, version);
         nl(UART2);
         // Get release message size in bytes (0x2)
-        r_size = (uint16_t)chunk_arr[5];
-        r_size |= (uint16_t)chunk_arr[6] << 8;
+        r_size = (uint16_t)complete_data[2];
+        r_size |= (uint16_t)complete_data[3] << 8;
         uart_write_str(UART2, "Received Release Message Size: ");
         uart_write_hex(UART2, r_size);
         nl(UART2);
         // Get firmware size in bytes (0x2) 
-        f_size = (uint16_t)chunk_arr[3];
-        f_size |= (uint16_t)chunk_arr[4] << 8;
+        f_size = (uint16_t)complete_data[4];
+        f_size |= (uint16_t)complete_data[5] << 8;
         uart_write_str(UART2, "Received Firmware Size: ");
         uart_write_hex(UART2, f_size);
         nl(UART2);
@@ -345,11 +344,7 @@ void load_firmware(void){
 
         // Check for GHASH error
         if (error == 1){
-            uart_write_str(UART2, "Incorrect GHASH\n");
-        // Check for incorrect message type
-        } else if (chunk_arr[0] != 1){
-            uart_write_str(UART2, "Incorrect Message Type\n");
-            error = 1;
+            uart_write_str(UART2, "Incorrect Hash or Type\n");
         // If version less than old version, reject and reset
         } else if ((version < old_version)){
             uart_write_str(UART2, "Incorrect Version\n");
@@ -372,6 +367,7 @@ void load_firmware(void){
             SysCtlReset();
             return;
         }
+        return;
     } while (error != 0);
 
     // Resets counter, since start frame successful
@@ -395,7 +391,7 @@ void load_firmware(void){
             // Read frames
             int read = 0;
             for (int i = 0; i < 16; i += 1) {
-                chunk_arr[i] = uart_read(UART1, BLOCKING, &read);
+                complete_data[i] = uart_read(UART1, BLOCKING, &read);
             }
 
             // Error handling
@@ -403,7 +399,7 @@ void load_firmware(void){
                 uart_write_str(UART2, "Incorrect GHASH\n");
                 uart_write(UART1, TYPE);
                 uart_write(UART1, ERROR);
-            }else if (chunk_arr[0] != 2){
+            }else if (complete_data[0] != 2){
                 uart_write_str(UART2, "Incorrect Message Type\n");
                 uart_write(UART1, TYPE);
                 uart_write(UART1, ERROR);
@@ -431,7 +427,7 @@ void load_firmware(void){
         for (int j = 1; j < 16; j++) {
             // Get the data that will be written
             if (f_size - (i + j) >= 0) {
-                complete_data[data_index] = chunk_arr[j];
+                complete_data[data_index] = complete_data[j];
                 data_index += 1;
             }
             
@@ -495,7 +491,7 @@ void load_firmware(void){
             // Read frames
             int read = 0;
             for (int i = 0; i < 16; i += 1) {
-                chunk_arr[i] = uart_read(UART1, BLOCKING, &read);
+                complete_data[i] = uart_read(UART1, BLOCKING, &read);
             }
 
             // Check for errors
@@ -503,7 +499,7 @@ void load_firmware(void){
                 uart_write_str(UART2, "Incorrect GHASH\n");
                 uart_write(UART1, TYPE);
                 uart_write(UART1, ERROR);
-            } else if (chunk_arr[0] != 2){
+            } else if (complete_data[0] != 2){
                 uart_write_str(UART2, "Incorrect Message Type\n");
                 uart_write(UART1, TYPE);
                 uart_write(UART1, ERROR);
@@ -530,7 +526,7 @@ void load_firmware(void){
         for (int j = 1; j < 16; j++) {
             // Get the data that will be written
             if (r_size - (i + j) >= 0) {
-                complete_data[data_index] = chunk_arr[j];
+                complete_data[data_index] = complete_data[j];
                 data_index += 1;
             }
 
@@ -591,7 +587,7 @@ void load_firmware(void){
         // Read frame
         int read = 0;
         for (int i = 0; i < 16; i += 1) {
-            chunk_arr[i] = uart_read(UART1, BLOCKING, &read);
+            complete_data[i] = uart_read(UART1, BLOCKING, &read);
         }
 
         // Check for errors
@@ -599,7 +595,7 @@ void load_firmware(void){
             uart_write_str(UART2, "Incorrect GHASH\n");
             uart_write(UART1, TYPE);
             uart_write(UART1, ERROR);
-        } else if (chunk_arr[0] != 3){
+        } else if (complete_data[0] != 3){
             uart_write_str(UART2, "Incorrect Message Type\n");
             uart_write(UART1, TYPE);
             uart_write(UART1, ERROR);
