@@ -443,7 +443,6 @@ void load_firmware(void){
         uart_write(UART1, TYPE);
         uart_write(UART1, OK);
         
-        return;
         // Reset counter inbetween packets
         error_counter = 0;
     }
