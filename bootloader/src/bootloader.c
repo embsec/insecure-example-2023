@@ -24,6 +24,8 @@
 void load_initial_firmware(void);
 void load_firmware(void);
 void boot_firmware(void);
+int uart_read_bytes(int bytes, uint8_t* dest);
+int frame_decrypt(uint8_t *arr, uint8_t *expected_type);
 long program_flash(uint32_t, unsigned char *, unsigned int);
 
 // Firmware Constants
@@ -172,6 +174,29 @@ void load_initial_firmware(void){
     }
 }
 
+
+/*
+****************************************************************
+* Takes in a number of bytes to read, a UART to read them from, 
+* and a blocking value and a destination to write them to
+* Returns 0 if reading the whole thing went successfully
+* Returns a 1 if otherwise
+****************************************************************
+*/
+int uart_read_bytes(int bytes, uint8_t* dest){
+    int rcv = 0;//Received data
+    int read = 0; //Flag that reports on success of read operation
+    int result = 0;//Stores operation status
+    for (int i = 0; i < bytes; i += 1) {
+        rcv = uart_read(UART1, BLOCKING, &read);
+        dest[i] = rcv;
+        if (read != 0){
+            result = 1;
+        }
+    }
+    return result;
+}
+
 /* ****************************************************************
  *
  * Reads and decrypts a packet as well as checking its HASH.
@@ -292,7 +317,6 @@ void load_firmware(void){
         // Get version metadata
         uint16_t old_version = *fw_version_address;
         // If version 0 (debug), don't change version
-        // Halp! doesn't get 0'd when writing
         if (version == 0){
             version = old_version;
         }
@@ -322,7 +346,6 @@ void load_firmware(void){
             SysCtlReset();
             return;
         }
-        return;
     } while (error != 0);
 
     // Resets counter, since start frame successful
@@ -340,25 +363,17 @@ void load_firmware(void){
 
     // ************************************************************
     // Process DATA frames
-    for (int i = 0; i < f_size; i += 15){
+    for (int i = 0; i < f_size; i += 1024){
         // Reading and checking for errors
         do {
-            // Read frames
-            int read = 0;
-            for (int i = 0; i < 16; i += 1) {
-                complete_data[i] = uart_read(UART1, BLOCKING, &read);
-            }
-
+            // Read single frame
+            error = frame_decrypt(complete_data, 2);
+            
             // Error handling
             if (error == 1){
-                uart_write_str(UART2, "Incorrect GHASH\n");
+                uart_write_str(UART2, "Either message or hash wrong\n");
                 uart_write(UART1, TYPE);
                 uart_write(UART1, ERROR);
-            }else if (complete_data[0] != 2){
-                uart_write_str(UART2, "Incorrect Message Type\n");
-                uart_write(UART1, TYPE);
-                uart_write(UART1, ERROR);
-                error = 1;
             }
 
             // Error timeout implementation
@@ -378,6 +393,7 @@ void load_firmware(void){
         uart_write_hex(UART2, i);
         nl(UART2);
 
+        return;
         // Writing to flash
         for (int j = 1; j < 16; j++) {
             // Get the data that will be written
