@@ -66,13 +66,13 @@ def protect_firmware(infile, outfile, version, message, secret):
     messageBin += b"\x00"
     firmwareAndMessage = firmware + messageBin #Smushes firmware adnd message together
     # Breaks into chunks
-    for i in range (0, len(firmware), 1024):
+    for i in range (0, len(firmwareAndMessage), 1024):
         # Check if the data fills a full 0xF chunk
         if ((len(firmwareAndMessage) - i) // 1024 != 0):
             temp = p8(2, endian = "little") + encrypt(firmwareAndMessage[i : i + 1024], key, header) # Message type + firmware
             messageAndDataEncrypted += temp
     # If the last chunk is not a 0xF chunk, pads and encrypts
-    if (len(firmware) % 1024 != 0):
+    if (len(firmwareAndMessage) % 1024 != 0):
         temp = randPad((firmwareAndMessage[i : len(firmwareAndMessage)]), 1024) # Message type + firmware + padding
         messageAndDataEncrypted += p8(2, endian = "little") + encrypt(temp, key, header)
 
