@@ -369,7 +369,7 @@ void load_firmware(void){
         do {
             // Read single frame
             error = frame_decrypt(complete_data, 2);
-            
+
             // Error handling
             if (error == 1){
                 uart_write_str(UART2, "Either message or hash wrong\n");
@@ -441,7 +441,8 @@ void load_firmware(void){
         // Send packet recieved success message
         uart_write(UART1, TYPE);
         uart_write(UART1, OK);
-
+        
+        return;
         // Reset counter inbetween packets
         error_counter = 0;
     }
