@@ -53,11 +53,6 @@ uint16_t *fw_size_address = (uint16_t *)(METADATA_BASE + 2);
 uint8_t *fw_release_message_address;
 void uart_write_hex_bytes(uint8_t uart, uint8_t * start, uint32_t len);
 
-// Firmware Buffer
-volatile unsigned char complete_data[1024];
-volatile unsigned char gen_hash[32];
-volatile unsigned char recieved_hash[32];
-
 /* ****************************************************************
  *
  * Intilializes UARTS.
@@ -269,6 +264,11 @@ void load_firmware(void){
     uint16_t f_size;
     uint16_t r_size;
 
+    // Firmware Buffer
+    volatile unsigned char complete_data[1024];
+    volatile unsigned char gen_hash[32];
+    volatile unsigned char recieved_hash[32];
+
     for (int c = 0; c < 32; c++){
         gen_hash[c] = 0;
         recieved_hash[c] = 0;
@@ -300,6 +300,12 @@ void load_firmware(void){
         for (int uwu = 0; uwu < owo; uwu++){
             ((uint8_t *)&ctx)[uwu] = 0;
         }
+
+        unsigned char temp_data[1024];
+        for (int z = 0; z < 1024; z++){
+            temp_data[z] = complete_data[z];
+        }
+
         br_sha256_init(&ctx); // Initialize SHA256 context
         br_sha256_update(&ctx, complete_data, 1024); // Update context with data
         br_sha256_out(&ctx, gen_hash);

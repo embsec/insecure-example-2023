@@ -99,6 +99,7 @@ CFLAGS=-mthumb             \
        -MD                 \
        -std=c99            \
        -Wall               \
+	   -Wdiscarded-qualifiers \
        -pedantic           \
        -DPART_${PART}      \
        -c
