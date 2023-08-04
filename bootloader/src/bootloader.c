@@ -309,11 +309,16 @@ void load_firmware(void){
         uart_write_hex_bytes(UART2, gen_hash, 32);
         nl(UART2);
 
-        for (int i = 0; i < 32; i += 0) {
+        for (int i = 0; i < 32; i += 1) {
             if (gen_hash[i] != recieved_hash[i]){
                 error = 1;
             }
         }
+
+        if (error == 1){
+            uart_write_str(UART2, "owowowowowowow");
+        }
+
         return;
 
         // Get version (0x2)
