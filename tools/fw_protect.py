@@ -40,7 +40,13 @@ def encrypt(data, key, header):
 
     print(h.hexdigest())
     # Returns encrypted data, tag, and nonce/IV
-    return(data + h.digest())
+    plaintext = data + h.digest()
+    cipher = AES.new(key, AES.MODE_CBC)
+    
+    iv = cipher.iv
+    ct_bytes = cipher.encrypt(plaintext)
+    
+    return(ct_bytes + iv)
 
 # Packages the firmware
 # Takes firmware location, output location,
@@ -61,7 +67,7 @@ def protect_firmware(infile, outfile, version, message, secret):
     # Encrypt the firmware
     messageAndDataEncrypted = b""
     i = 0
-    
+    print(len(firmware))
     messageBin = message.encode()
     messageBin += b"\x00"
     firmwareAndMessage = firmware + messageBin #Smushes firmware adnd message together
