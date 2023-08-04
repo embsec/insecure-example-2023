@@ -393,58 +393,49 @@ void load_firmware(void){
         uart_write_hex(UART2, i);
         nl(UART2);
 
-        return;
-        // Writing to flash
-        for (int j = 1; j < 16; j++) {
-            // Get the data that will be written
-            if (f_size - (i + j) >= 0) {
-                complete_data[data_index] = complete_data[j];
-                data_index += 1;
-            }
-            
-            // If page is filled up, write to flash
-            // Note: also has to check for padding when flashing release message
-            if (data_index >= FLASH_PAGESIZE) {
-                uart_write_hex_bytes(UART2, complete_data, 1024);
-
-                // Check for errors while writing to flash
-                do {
-                    // Write to flash, then check if data and memory match
-                    if (program_flash(page_addr, complete_data, data_index) == -1){
-                        uart_write_str(UART2, "Error while writing\n");
-                        uart_write(UART1, TYPE);
-                        uart_write(UART1, ERROR);
-                        error = 1;
-                    } else if (memcmp(complete_data, (void *) page_addr, data_index) != 0){
-                        uart_write_str(UART2, "Error while writing\n");
-                        uart_write(UART1, TYPE);
-                        uart_write(UART1, ERROR);
-                        error = 1;
-                    }
-                    
-                    // Error timeout
-                    error_counter += error;
-                    if (error_counter > 10){
-                        uart_write_str(UART2, "Timeout: too many errors\n");
-                        uart_write(UART1, TYPE);
-                        uart_write(UART1, END);
-                        SysCtlReset();
-                        return;
-                    }
-                } while(error != 0);
-                
-                // Write success and debugging messages to UART2.
-                uart_write_str(UART2, "Page successfully programmed\nAddress: ");
-                uart_write_hex(UART2, page_addr);
-                uart_write_str(UART2, "\nBytes: ");
-                uart_write_hex(UART2, data_index);
-                nl(UART2);
-
-                // Update to next page
-                page_addr += FLASH_PAGESIZE;
-                data_index = 0;
-            }
+        if (f_size - i < FLASH_PAGESIZE) {
+            data_index = f_size - i;
+        } else {
+            data_index = FLASH_PAGESIZE;
         }
+
+        // Writing to flash
+        do {
+            // Write to flash, then check if data and memory match
+            if (program_flash(page_addr, complete_data, data_index) == -1){
+                uart_write_str(UART2, "Error while writing\n");
+                uart_write(UART1, TYPE);
+                uart_write(UART1, ERROR);
+                error = 1;
+            } else if (memcmp(complete_data, (void *) page_addr, data_index) != 0){
+                uart_write_str(UART2, "Error while writing\n");
+                uart_write(UART1, TYPE);
+                uart_write(UART1, ERROR);
+                error = 1;
+            }
+                    
+            // Error timeout
+            error_counter += error;
+            if (error_counter > 10){
+                uart_write_str(UART2, "Timeout: too many errors\n");
+                uart_write(UART1, TYPE);
+                uart_write(UART1, END);
+                SysCtlReset();
+                return;
+            }
+        } while(error != 0);
+
+        // Write success and debugging messages to UART2.
+        uart_write_str(UART2, "Page successfully programmed\nAddress: ");
+        uart_write_hex(UART2, page_addr);
+        uart_write_str(UART2, "\nBytes: ");
+        uart_write_hex(UART2, data_index);
+        nl(UART2);
+
+        // Update to next page
+        page_addr += FLASH_PAGESIZE;
+        data_index = 0;
+
 
         // Send packet recieved success message
         uart_write(UART1, TYPE);
