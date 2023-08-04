@@ -254,6 +254,9 @@ int frame_decrypt(uint8_t *arr, uint8_t *expected_type){
     for (int i = 0; i < 1024; i += 1) {
         arr[i] = encrypted[i];
     }
+    nl(UART2);
+    uart_write_str(UART2, "unecrypted data");
+    uart_write_hex_bytes(UART2, arr, 1024);
 
     // Init hash variables
     volatile br_sha256_context ctx;
@@ -337,7 +340,7 @@ void load_firmware(void){
             version = old_version;
         }
 
-        // Check for GHASH error
+        // Check for HASH error
         if (error == 1){
             uart_write_str(UART2, "Incorrect Hash or Type\n");
         // If version less than old version, reject and reset
