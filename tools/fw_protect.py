@@ -59,34 +59,23 @@ def protect_firmware(infile, outfile, version, message, secret):
         header = fp.read(16)
 
     # Encrypt the firmware
-    fwEncrypt = b""
+    messageAndDataEncrypted = b""
     i = 0
-    # Breaks into chunks
-    for i in range (0, len(firmware), 1024):
-        # Check if the firmware fills a full 0xF chunk
-        if ((len(firmware) - i) // 1024 != 0):
-            temp = p8(2, endian = "little") + encrypt(firmware[i : i + 1024], key, header) # Message type + firmware
-            fwEncrypt += temp
-    # If the last chunk is not a 0xF chunk, pads and encrypts
-    if (len(firmware) % 1024 != 0):
-        temp = randPad(( firmware[i : len(firmware)]), 1024) # Message type + firmware + padding
-        fwEncrypt += p8(2, endian = "little") + encrypt(temp, key, header)
-
-    # Encode and encrypt the release message
+    
     messageBin = message.encode()
     messageBin += b"\x00"
-    rmEncrypt = b""
+    firmwareAndMessage = firmware + messageBin #Smushes firmware adnd message together
     # Breaks into chunks
-    for i in range (0, len(messageBin), 1024):
-        # Check if message fills a full 0xF chunk
-        if ((len(messageBin) - i) // 1024 != 0):
-            temp = messageBin[i : i + 1024] # Type and RM
-            rmEncrypt += p8(2, endian = "little") + encrypt(temp, key, header)
-
+    for i in range (0, len(firmware), 1024):
+        # Check if the data fills a full 0xF chunk
+        if ((len(firmwareAndMessage) - i) // 1024 != 0):
+            temp = p8(2, endian = "little") + encrypt(firmwareAndMessage[i : i + 1024], key, header) # Message type + firmware
+            messageAndDataEncrypted += temp
     # If the last chunk is not a 0xF chunk, pads and encrypts
-    if (len(messageBin) % 1024 != 0):
-        temp = randPad((messageBin[i : len(firmware)]), 1024) # Type, RM, null byte, and padding
-        rmEncrypt += p8(2, endian = "little") + encrypt(temp, key, header)
+    if (len(firmware) % 1024 != 0):
+        temp = randPad((firmwareAndMessage[i : len(firmwareAndMessage)]), 1024) # Message type + firmware + padding
+        messageAndDataEncrypted += p8(2, endian = "little") + encrypt(temp, key, header)
+
 
     # Create START frame
     # Temp is the type + version num + firmware len + RM len + padding
@@ -102,7 +91,7 @@ def protect_firmware(infile, outfile, version, message, secret):
     # print(begin)
     
     # Smush the START frame, encrypted firmware and RM, and END frame together
-    firmware_blob = begin + fwEncrypt + rmEncrypt + end
+    firmware_blob = begin + messageAndDataEncrypted + end
     print(firmware_blob)
     # Write encrypted firmware blob to outfile
     with open(outfile, 'wb+') as outfile:
