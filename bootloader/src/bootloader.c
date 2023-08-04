@@ -174,7 +174,7 @@ void load_initial_firmware(void){
 
 /* ****************************************************************
  *
- * Reads and decrypts a packet.
+ * Reads and decrypts a packet as well as checking its HASH.
  *
  * \param arr is the array that unencrypted data will be written to.
  * 
@@ -276,7 +276,7 @@ void load_firmware(void){
         uint8_t rcv = 0;
 
         type = uart_read(UART1, BLOCKING, &read);     // Message Type
-        for (int i = 0; i < 1024; i += 1) { // Data
+        for (int i = 0; i < 2; i += 1) { // Data
             rcv = uart_read(UART1, BLOCKING, &read);
             complete_data[i] = rcv;
         }
