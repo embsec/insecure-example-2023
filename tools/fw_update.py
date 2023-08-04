@@ -16,7 +16,7 @@ OK = b"\x00"
 ERROR = b"\x01"
 END = b"\x02"
 
-FRAME_SIZE = 1057
+FRAME_SIZE = 1073
 
 # Sends START frame
 # Takes serial object, meta frame, and debug
