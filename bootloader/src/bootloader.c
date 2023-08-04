@@ -268,51 +268,6 @@ void load_firmware(void){
     // ************************************************************
     // Read START frame and checks for errors
     do {
-        // Read frame
-        /*int read = 0;
-        uint8_t rcv = 0;
-
-        type = uart_read(UART1, BLOCKING, &read);     // Message Type
-        for (int i = 0; i < 2; i += 1) { // Data
-            rcv = uart_read(UART1, BLOCKING, &read);
-            complete_data[i] = rcv;
-        }
-        for (int i = 0; i < 32; i += 1) {             // recieved_hash
-            rcv = uart_read(UART1, BLOCKING, &read);
-            recieved_hash[i] = rcv;
-        }
-
-        // nl(UART2);
-        uart_write_hex_bytes(UART2, complete_data, FLASH_PAGESIZE);
-        nl(UART2);
-        uart_write_hex_bytes(UART2, recieved_hash , 32);
-
-        volatile br_sha256_context ctx;
-        int owo = sizeof(br_sha256_context);
-        for (int uwu = 0; uwu < owo; uwu++){
-            ((uint8_t *)&ctx)[uwu] = 0;
-        }
-
-        br_sha256_init(&ctx); // Initialize SHA256 context
-        br_sha256_update(&ctx, complete_data, 1024); // Update context with data
-        br_sha256_out(&ctx, gen_hash);
-    
-        uart_write_str(UART2, "SHA256 Hash: ");
-        uart_write_hex_bytes(UART2, gen_hash, 32);
-        nl(UART2);
-
-        for (int i = 0; i < 32; i += 1) {
-            if (gen_hash[i] != recieved_hash[i]){
-                error = 1;
-            }
-        }
-
-        if (error == 1){
-            uart_write_str(UART2, "owowowowowowow");
-        }
-
-        return; */
-
         error = frame_decrypt(complete_data, 1);
 
         // Get version (0x2)
@@ -322,16 +277,16 @@ void load_firmware(void){
         uart_write_hex(UART2, version);
         nl(UART2);
         // Get release message size in bytes (0x2)
-        r_size = (uint16_t)complete_data[2];
-        r_size |= (uint16_t)complete_data[3] << 8;
-        uart_write_str(UART2, "Received Release Message Size: ");
-        uart_write_hex(UART2, r_size);
-        nl(UART2);
-        // Get firmware size in bytes (0x2) 
-        f_size = (uint16_t)complete_data[4];
-        f_size |= (uint16_t)complete_data[5] << 8;
+        f_size = (uint16_t)complete_data[2];
+        f_size |= (uint16_t)complete_data[3] << 8;
         uart_write_str(UART2, "Received Firmware Size: ");
         uart_write_hex(UART2, f_size);
+        nl(UART2);
+        // Get firmware size in bytes (0x2) 
+        r_size = (uint16_t)complete_data[4];
+        r_size |= (uint16_t)complete_data[5] << 8;
+        uart_write_str(UART2, "Received Release Message Size: ");
+        uart_write_hex(UART2, r_size);
         nl(UART2);
 
         // Get version metadata
