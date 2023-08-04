@@ -213,8 +213,9 @@ int frame_decrypt(uint8_t *arr, uint8_t *expected_type){
     // Misc vars for reading
     int read = 0;
     uint32_t rcv = 0;
-    uint8_t type = 0;
     int error = 0;
+    uint8_t encrypted[1056];
+    uint8_t iv[16];
 
     volatile unsigned char gen_hash[32];
     volatile unsigned char recieved_hash[32];
@@ -224,30 +225,43 @@ int frame_decrypt(uint8_t *arr, uint8_t *expected_type){
         recieved_hash[c] = 0;
     }
 
-    //reads TYPE
-    type = uart_read(UART1, BLOCKING, &read);     // Message Type
-    //check if TYPE equals data message type
-    if (type != expected_type){
+    // Read and check TYPE
+    if (uart_read(UART1, BLOCKING, &read) != expected_type){
         error = 1;
         return error;
     }
-    // Reads DATA
+
+    // Reads DATA and HASH
+    for (int i = 0; i < 1056; i += 1) {
+        rcv = uart_read(UART1, BLOCKING, &read);
+        encrypted[i] = rcv;
+    }
+    // Reads IV
+    for (int i = 0; i < 16; i += 1) {
+        rcv = uart_read(UART1, BLOCKING, &read);
+        iv[i] = rcv;
+    }
+
+    // Unencrypt w/ CBC
+    const br_block_cbcdec_class* vd = &br_aes_big_cbcdec_vtable;
+    br_aes_gen_cbcdec_keys v_dc;
+    const br_block_cbcdec_class **dc;
+    dc = &v_dc.vtable;
+    vd->init(dc, KEY, 16);
+    vd->run(dc, iv, encrypted, 1056);
+
+    // Put unencrypted firmware into the array
     for (int i = 0; i < 1024; i += 1) {
-        rcv = uart_read(UART1, BLOCKING, &read);
-        arr[i] = rcv;
+        arr[i] = encrypted[i];
     }
-    //Reads HASH
-    for (int i = 0; i < 32; i += 1) {
-        rcv = uart_read(UART1, BLOCKING, &read);
-        recieved_hash[i] = rcv;
-    }
-    //init hash variables
+
+    // Init hash variables
     volatile br_sha256_context ctx;
     int owo = sizeof(br_sha256_context);
     for (int uwu = 0; uwu < owo; uwu++){
         ((uint8_t *)&ctx)[uwu] = 0;
     }
-    //generate new HASH
+    // Generate new HASH
     br_sha256_init(&ctx); // Initialize SHA256 context
     br_sha256_update(&ctx, arr, 1024); // Update context with data
     br_sha256_out(&ctx, gen_hash);
@@ -258,7 +272,7 @@ int frame_decrypt(uint8_t *arr, uint8_t *expected_type){
 
     //compare new HASH to old HASH
     for (int i = 0; i < 32; i += 1) {
-        if (gen_hash[i] != recieved_hash[i]){
+        if (gen_hash[i] != encrypted[1024 + i]){
             error = 1;
         }
     }
