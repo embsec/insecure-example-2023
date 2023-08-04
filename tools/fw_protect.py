@@ -80,23 +80,23 @@ def protect_firmware(infile, outfile, version, message, secret):
     for i in range (0, len(messageBin), 1024):
         # Check if message fills a full 0xF chunk
         if ((len(messageBin) - i) // 1024 != 0):
-            temp = p8(2, endian = "little") + messageBin[i : i + 1024] # Type and RM
-            rmEncrypt += temp
+            temp = messageBin[i : i + 1024] # Type and RM
+            rmEncrypt += p8(2, endian = "little") + encrypt(temp, key, header)
 
     # If the last chunk is not a 0xF chunk, pads and encrypts
     if (len(messageBin) % 1024 != 0):
-        temp = randPad((p8(2, endian = "little") + messageBin[i : len(firmware)]), 1024) # Type, RM, null byte, and padding
-        rmEncrypt += temp
+        temp = randPad((messageBin[i : len(firmware)]), 1024) # Type, RM, null byte, and padding
+        rmEncrypt += p8(2, endian = "little") + encrypt(temp, key, header)
 
     # Create START frame
     # Temp is the type + version num + firmware len + RM len + padding
-    temp = randPad(p8(1, endian = "little") + p16(version, endian = "little") + p16(len(firmware), endian = "little") + p16(len(messageBin), endian = "little"), 1024)
-    begin = temp
+    temp = randPad(p16(version, endian = "little") + p16(len(firmware), endian = "little") + p16(len(messageBin), endian = "little"), 1024)
+    begin = p8(1, endian = "little") + encrypt(temp, key, header)
 
     # Create END frame
     # Temp is the type + padding
-    # temp = randPad(p8(3, endian = "little"), 16)
-    # end = temp
+    temp = randPad(b"", 1024)
+    end = p8(3, endian = "little") + encrypt(temp, key, header)
 
     # For debugging?
     # print(begin)
