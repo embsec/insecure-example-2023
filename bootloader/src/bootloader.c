@@ -301,11 +301,6 @@ void load_firmware(void){
             ((uint8_t *)&ctx)[uwu] = 0;
         }
 
-        unsigned char temp_data[1024];
-        for (int z = 0; z < 1024; z++){
-            temp_data[z] = complete_data[z];
-        }
-
         br_sha256_init(&ctx); // Initialize SHA256 context
         br_sha256_update(&ctx, complete_data, 1024); // Update context with data
         br_sha256_out(&ctx, gen_hash);
