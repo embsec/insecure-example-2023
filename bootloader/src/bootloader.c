@@ -31,6 +31,8 @@ long program_flash(uint32_t, unsigned char *, unsigned int);
 // Firmware Constants
 #define METADATA_BASE 0xFC00 // base address of version and firmware size in Flash
 #define FW_BASE 0x10000      // base address of firmware in Flash
+#define FW_VERSION_ADDRESS (uint16_t *)METADATA_BASE;
+#define FW_SIZE_ADDRESS (uint16_t *)(METADATA_BASE + 2);
 
 // FLASH Constants
 #define FLASH_PAGESIZE 1024
@@ -50,8 +52,7 @@ extern int _binary_firmware_bin_start;
 extern int _binary_firmware_bin_size;
 
 // Device metadata
-uint16_t *fw_version_address = (uint16_t *)METADATA_BASE;
-uint16_t *fw_size_address = (uint16_t *)(METADATA_BASE + 2);
+
 uint8_t *fw_release_message_address;
 void uart_write_hex_bytes(uint8_t uart, uint8_t * start, uint32_t len);
 
@@ -316,7 +317,7 @@ void load_firmware(void){
         nl(UART2);
 
         // Get version metadata
-        uint16_t old_version = *fw_version_address;
+        uint16_t old_version = *FW_VERSION_ADDRESS;
         // If version 0 (debug), don't change version
         if (version == 0){
             version = old_version;
@@ -400,6 +401,8 @@ void load_firmware(void){
         } else {
             data_index = FLASH_PAGESIZE;
         }
+
+        uart_write_hex_bytes(UART2, complete_data, 1024);
 
         // Writing to flash
         do {
@@ -648,7 +651,7 @@ long program_flash(uint32_t page_addr, unsigned char *data, unsigned int data_le
  */
 void boot_firmware(void){
     // compute the release message address, and then print it
-    uint16_t fw_size = *fw_size_address;
+    uint16_t fw_size = *FW_SIZE_ADDRESS;
     fw_release_message_address = (uint8_t *)(FW_BASE + fw_size);
     uart_write_str(UART2, (char *)fw_release_message_address);
 
