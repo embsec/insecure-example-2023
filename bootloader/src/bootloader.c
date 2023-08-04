@@ -549,26 +549,18 @@ void load_firmware(void){
     // Process END frame
     do {
         // Read frame
-        int read = 0;
-        for (int i = 0; i < 16; i += 1) {
-            complete_data[i] = uart_read(UART1, BLOCKING, &read);
-        }
-
-        // Check for errors
+        error = frame_decrypt(complete_data, 3);
+            
+        // Error handling
         if (error == 1){
-            uart_write_str(UART2, "Incorrect GHASH\n");
+            uart_write_str(UART2, "Either message or hash wrong\n");
             uart_write(UART1, TYPE);
             uart_write(UART1, ERROR);
-        } else if (complete_data[0] != 3){
-            uart_write_str(UART2, "Incorrect Message Type\n");
-            uart_write(UART1, TYPE);
-            uart_write(UART1, ERROR);
-            error = 1;
         }
 
-        // Error timeout
+        // Error timeout implementation
         error_counter += error;
-        if (error_counter > 10) {
+        if(error_counter > 10){
             uart_write_str(UART2, "Timeout: too many errors\n");
             uart_write(UART1, TYPE);
             uart_write(UART1, END);
