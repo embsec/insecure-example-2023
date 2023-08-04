@@ -187,56 +187,58 @@ int frame_decrypt(uint8_t *arr){
     int read = 0;
     uint32_t rcv = 0;
 
-    // Packet components: each is 16 bytes
-    // The data array is not declared here, as it is a parameter
-    uint8_t recieved_hash[16];
-    uint8_t nonce[16];
+    uint8_t type = 0;
 
-    // Reads the packet
-    for (int i = 0; i < 16; i += 1) {
+    volatile unsigned char gen_hash[32];
+    volatile unsigned char recieved_hash[32];
+
+    int error = 0;
+
+    for (int c = 0; c < 32; c++){
+        gen_hash[c] = 0;
+        recieved_hash[c] = 0;
+    }
+
+    //reads TYPE
+    type = uart_read(UART1, BLOCKING, &read);     // Message Type
+    //check if TYPE equals data message type
+    if (type != 2){
+        error = 1;
+        return error;
+    }
+    // Reads DATA
+    for (int i = 0; i < 1024; i += 1) {
         rcv = uart_read(UART1, BLOCKING, &read);
         arr[i] = rcv;
     }
-    for (int i = 0; i < 16; i += 1) {
+    //Reads HASH
+    for (int i = 0; i < 32; i += 1) {
         rcv = uart_read(UART1, BLOCKING, &read);
         recieved_hash[i] = rcv;
     }
-    for (int i = 0; i < 16; i += 1) {
-        rcv = uart_read(UART1, BLOCKING, &read);
-        nonce[i] = rcv;
+    //init hash variables
+    volatile br_sha256_context ctx;
+    int owo = sizeof(br_sha256_context);
+    for (int uwu = 0; uwu < owo; uwu++){
+        ((uint8_t *)&ctx)[uwu] = 0;
+    }
+    //generate new HASH
+    br_sha256_init(&ctx); // Initialize SHA256 context
+    br_sha256_update(&ctx, arr, 1024); // Update context with data
+    br_sha256_out(&ctx, gen_hash);
+
+    uart_write_str(UART2, "SHA256 Hash: ");
+    uart_write_hex_bytes(UART2, gen_hash, 32);
+    nl(UART2);
+
+    //compare new HASH to old HASH
+    for (int i = 0; i < 32; i += 1) {
+        if (gen_hash[i] != recieved_hash[i]){
+            error = 1;
+        }
     }
 
-    /*
-    for (int i = 0; i < 1024; i += 1) {
-        backup[i] = complete_data[i];
-    }*/
-
-    // Initialize the GCM, with counter and GHASH
-    // br_aes_ct_ctr_keys counter;
-    // br_gcm_context context;
-    // br_aes_ct_ctr_init(&counter, KEY, 16); // Note: KEY is a macro in keys.h
-    // br_gcm_init(&context, &counter.vtable, br_ghash_ctmul32);
-
-    // // Add nonce and header
-    // br_gcm_reset(&context, nonce, 16);
-    // br_gcm_aad_inject(&context, HEADER, 16); // HEADER is also a macro in keys.h
-    // br_gcm_flip(&context);
-
-    // // Decrypt data
-    // br_gcm_run(&context, 0, arr, 16);
-
-    // /*for (int i = 0; i < 1024; i += 1) {
-    //     complete_data[i] = backup[i];
-    // }
-    // */
-
-    // // Check GHASH
-    // if (br_gcm_check_recieved_hash(&context, recieved_hash)) {
-    //     return 0;
-    // } else {
-    //     return 1;
-    // }
-    return 1;
+    return error;
 }
 
 /* ****************************************************************
@@ -266,13 +268,6 @@ void load_firmware(void){
 
     // Firmware Buffer
     volatile unsigned char complete_data[1024];
-    volatile unsigned char gen_hash[32];
-    volatile unsigned char recieved_hash[32];
-
-    for (int c = 0; c < 32; c++){
-        gen_hash[c] = 0;
-        recieved_hash[c] = 0;
-    }
     // ************************************************************
     // Read START frame and checks for errors
     do {
