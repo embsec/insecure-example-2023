@@ -364,7 +364,8 @@ void load_firmware(void){
 
     // ************************************************************
     // Process DATA frames
-    for (int i = 0; i < f_size; i += 1024){
+    int total_size = f_size + r_size;
+    for (int i = 0; i < total_size; i += 1024){
         // Reading and checking for errors
         do {
             // Read single frame
@@ -394,8 +395,8 @@ void load_firmware(void){
         uart_write_hex(UART2, i);
         nl(UART2);
 
-        if (f_size - i < FLASH_PAGESIZE) {
-            data_index = f_size - i;
+        if (total_size - i < FLASH_PAGESIZE) {
+            data_index = total_size - i;
         } else {
             data_index = FLASH_PAGESIZE;
         }
@@ -449,6 +450,7 @@ void load_firmware(void){
 
     // ************************************************************
     // Process RELEASE MESSAGE frames
+    /*
     for (int i = 0; i < r_size; i += 15){
         // Read and check for errors
         do{
@@ -544,6 +546,7 @@ void load_firmware(void){
         // Reset counter inbetween packets
         error_counter = 0;
     }
+    */
 
     // ************************************************************
     // Process END frame
